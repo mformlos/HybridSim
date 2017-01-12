@@ -16,13 +16,16 @@ Particle::Particle(Vector3d aPosition, Vector3d aVelocity, double aMass) :
 	Mass { aMass } { }
 
 MPCParticle::MPCParticle() : 
-    Particle() { }
+    Particle(), 
+    CellIndex {} { }
     
 MPCParticle::MPCParticle(double aMass) : 
-    Particle(aMass) { }
+    Particle(aMass), 
+    CellIndex {} { }
     
 MPCParticle::MPCParticle(Vector3d aPosition, Vector3d aVelocity, double aMass) :
-    Particle(aPosition, aVelocity, aMass) { }
+    Particle(aPosition, aVelocity, aMass),
+    CellIndex {} { }
     
 
 	

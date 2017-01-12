@@ -25,6 +25,8 @@ public:
 
 class MPCParticle : public Particle {
 public:
+    int CellIndex;
+
     MPCParticle(); 
     MPCParticle(double); 
     MPCParticle(Vector3d, Vector3d, double); 
