@@ -31,6 +31,7 @@ public:
     MPCParticle(double); 
     MPCParticle(Vector3d, Vector3d, double); 
     ~MPCParticle() = default;
+    bool operator < (const MPCParticle& part) const; 
 };
 
 
