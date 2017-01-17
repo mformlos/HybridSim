@@ -5,7 +5,7 @@
 
 int main() {
     Particle test_part; 
-    unsigned Steps = 100; 
+    unsigned Steps = 50; 
     unsigned N = 10000; 
     
     test_part.Velocity(0) = 1.0; 
@@ -46,12 +46,13 @@ int main() {
         for (unsigned n = 0; n < Steps; n++) {
             #pragma omp for schedule(static) 
             for (unsigned part = 0; part < test_mpc.NumberOfParticles; part++) {
-                test_mpc.stream(test_mpc.Fluid[part], 0.1); 
+                test_mpc.streamPlusCellAssignment(test_mpc.Fluid[part], 0.1); 
+                //test_mpc.stream(test_mpc.Fluid[part], 0.1); 
             }
             #pragma omp single 
             {
                 if (n%10==0) {
-                    test_mpc.updateParticleCellIndex();
+                    //test_mpc.updateParticleCellIndex();
                     test_mpc.sortVector(); 
                 }
             } 
@@ -59,13 +60,13 @@ int main() {
             #pragma omp sections
             {
                 #pragma omp section
-                test_mpc.sort(); 
+                test_mpc.sortOnly(); 
                 
                 #pragma omp section 
                 for (unsigned Index = 0; Index < test_mpc.NumberOfCells; Index++) {
                     test_mpc.drawRotation(Index); 
                 }   
-            } 
+            }
 
             #pragma omp for schedule(static) 
             for (unsigned Index = 0; Index < test_mpc.NumberOfCells; Index++) {

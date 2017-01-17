@@ -27,7 +27,9 @@ MPCParticle::MPCParticle(Vector3d aPosition, Vector3d aVelocity, double aMass) :
     Particle(aPosition, aVelocity, aMass),
     CellIndex {} { }
     
-
+bool MPCParticle::operator< (const MPCParticle& part) const {
+    return (CellIndex < part.CellIndex); 
+}
 	
 
 MDParticle::MDParticle() : 

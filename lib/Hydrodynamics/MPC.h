@@ -5,6 +5,15 @@
 #include "Particle.h"
 #include "Rand.h"
 
+struct CellMembers{
+    Vector3d CellCOMVel; 
+    Matrix3d CellRotation; 
+    
+    CellMembers() : 
+        CellCOMVel {Vector3d::Zero()}, 
+        CellRotation {Matrix3d::Zero()} {}
+};
+
 class MPC {
 public: 
     double c; 
@@ -12,8 +21,7 @@ public:
     double Temperature; 
     std::vector<MPCParticle> Fluid; 
     std::vector<std::forward_list<MPCParticle*>> CellList; 
-    std::vector<Vector3d> CellCOMVel;
-    std::vector<Matrix3d> CellRotation;  
+    std::vector<CellMembers> CellData;  
     unsigned NumberOfCells; 
     unsigned NumberOfParticles; 
     std::array<unsigned,3> BoxSize;
@@ -27,16 +35,18 @@ public:
     //MPC routine 
     void stream(MPCParticle&, double dt); 
     void stream(double dt); 
+    void streamPlusCellAssignment(MPCParticle&, double);
     void sort(); 
+    void sortOnly(); 
     void updateParticleCellIndex(); 
     void calculateCOMVel(unsigned); 
     void drawRotation(unsigned); 
     void rotate(unsigned); //rotate a particle
-    
+
     
     void collide(unsigned, Vector3d); //collide in specific box
     void collide(); //collide in all boxes
-    bool sortByPosition(MPCParticle, MPCParticle); 
+
     void sortVector(); 
     
     
@@ -48,8 +58,7 @@ public:
     double virtualTemperature(); 
     
     Vector3d CenterOfMassVelocity(unsigned); 
-    
-    bool operator() (MPCParticle, MPCParticle); 
+     
 
 
 }; 

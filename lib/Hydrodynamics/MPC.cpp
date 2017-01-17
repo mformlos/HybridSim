@@ -11,8 +11,7 @@ MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperatur
         NumberOfCells = Lx*Ly*Lz; 
         NumberOfParticles = N_c*NumberOfCells; 
         CellList = std::vector<std::forward_list<MPCParticle*>>(NumberOfCells, std::forward_list<MPCParticle*>()); 
-        CellCOMVel = std::vector<Vector3d>(NumberOfCells, Vector3d::Zero()); 
-        CellRotation = std::vector<Matrix3d>(NumberOfCells, Matrix3d::Zero()); 
+        CellData = std::vector<CellMembers>(NumberOfCells, CellMembers());  
         Fluid.reserve(NumberOfParticles); 
         for (unsigned i = 0; i < NumberOfParticles; i++) {
             Fluid.push_back(MPCParticle(1.0)); 
@@ -59,6 +58,12 @@ void MPC::stream(MPCParticle& part, double dt) {
     wrap(part); 
 } 
 
+void MPC::streamPlusCellAssignment(MPCParticle& part, double dt) {
+    part.Position += part.Velocity*dt; 
+    wrap(part);
+    part.CellIndex = (int)part.Position(0) + (int)part.Position(1)*BoxSize[0] + (int)part.Position(2)*BoxSize[0]*BoxSize[1]; 
+}
+
 void MPC::stream(double dt) {
     for (auto& part : Fluid) {
         stream(part, dt); 
@@ -89,6 +94,25 @@ void MPC::sort() {
         }
     }
 }
+
+void MPC::sortOnly() {
+    for (auto& Cell : CellList) {
+        Cell.clear(); 
+    }
+    for (auto& part : Fluid) {
+        try {
+            CellList.at(part.CellIndex).push_front(&part); 
+        }
+        catch (std::exception& e) {
+            std::cout << "The following exception occurred : " << e.what() << std::endl;
+            std::cout << "for a particle with position "  << part.Position.transpose() << " and cell index " << part.CellIndex << std::endl;
+            throw std::out_of_range("OOR");  
+            return; 
+        }    
+    }
+}
+
+
 
 void MPC::updateParticleCellIndex() {
     for (auto& part : Fluid) {
@@ -133,16 +157,10 @@ Vector3d MPC::CenterOfMassVelocity(unsigned Index) {
     return COMVel; 
 }
 
-bool MPC::sortByPosition(MPCParticle one, MPCParticle two) {
-    unsigned CellIndexOne = (int)one.Position(0) + (int)one.Position(1)*BoxSize[0] + (int)one.Position(2)*BoxSize[0]*BoxSize[1]; 
-    unsigned CellIndexTwo = (int)two.Position(0) + (int)two.Position(1)*BoxSize[0] + (int)two.Position(2)*BoxSize[0]*BoxSize[1]; 
-    return CellIndexOne < CellIndexTwo;
-}
+
 void MPC::sortVector() {
     std::sort(Fluid.begin(), Fluid.end()); 
 }
-
-bool MPC::operator()(MPCParticle one, MPCParticle two) {return sortByPosition(one, two);}
 
 
 void MPC::calculateCOMVel(unsigned Index) {
@@ -152,8 +170,8 @@ void MPC::calculateCOMVel(unsigned Index) {
         COMVel += part -> Velocity * part -> Mass; 
         totalMass += part -> Mass; 
     }
-    if (totalMass > 0) CellCOMVel[Index] = COMVel / totalMass;
-    else CellCOMVel[Index] = Vector3d::Zero();  
+    if (totalMass > 0) CellData[Index].CellCOMVel = COMVel / totalMass;
+    else CellData[Index].CellCOMVel = Vector3d::Zero();  
 }
 
 void MPC::drawRotation(unsigned Index) {
@@ -175,10 +193,10 @@ void MPC::drawRotation(unsigned Index) {
 	RotationMatrix(2,0) = RotationAxis(0)*RotationAxis(2)*(1 - c) - RotationAxis(1)*s;
 	RotationMatrix(2,1) = RotationAxis(1)*RotationAxis(2)*(1 - c) + RotationAxis(0)*s;
 	RotationMatrix(2,2) = RotationAxis(2)*RotationAxis(2) + (1 - RotationAxis(2)*RotationAxis(2))*c;
-    CellRotation[Index] = RotationMatrix;     
+    CellData[Index].CellRotation = RotationMatrix;     
 }
 
 void MPC::rotate(unsigned i) {
     int Index{Fluid[i].CellIndex}; 
-    Fluid[i].Velocity = CellCOMVel[Index] + CellRotation[Index]*(Fluid[i].Velocity - CellCOMVel[Index]); 
+    Fluid[i].Velocity = CellData[Index].CellCOMVel + CellData[Index].CellRotation*(Fluid[i].Velocity - CellData[Index].CellCOMVel); 
 }
