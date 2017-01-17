@@ -3,22 +3,29 @@
 
 #include <stdlib.h>
 #include "Particle.h"
-#include "Rand.h"
+#include "NewRand.h"
 
 struct CellMembers{
-    Vector3d CellCOMVel; 
-    Matrix3d CellRotation; 
+    Vector3d CellCOMVel;
+    double CellScaling;  
+    Matrix3d CellRotation;
+    bool CellThermo;  
     
     CellMembers() : 
         CellCOMVel {Vector3d::Zero()}, 
-        CellRotation {Matrix3d::Zero()} {}
+        CellScaling {0.0}, 
+        CellRotation {Matrix3d::Zero()},
+        CellThermo {false} {}
 };
 
 class MPC {
 public: 
     double c; 
     double s; 
-    double Temperature; 
+    double Temperature;
+    double Shear;
+    double delrx;  
+    Vector3d GridShift;
     std::vector<MPCParticle> Fluid; 
     std::vector<std::forward_list<MPCParticle*>> CellList; 
     std::vector<CellMembers> CellData;  
@@ -26,13 +33,14 @@ public:
     unsigned NumberOfParticles; 
     std::array<unsigned,3> BoxSize;
     
-    MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double); 
+    MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double T, double gamma); 
     
     //Initialization: 
     void initialize_random(); 
     
     
     //MPC routine 
+    void updateBoxShift(double dt);
     void stream(MPCParticle&, double dt); 
     void stream(double dt); 
     void streamPlusCellAssignment(MPCParticle&, double);

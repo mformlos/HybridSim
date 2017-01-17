@@ -5,12 +5,13 @@
 
 int main() {
     Particle test_part; 
-    unsigned Steps = 50; 
+    unsigned Steps = 30; 
     unsigned N = 10000; 
+    
     
     test_part.Velocity(0) = 1.0; 
     
-    MPC test_mpc(100, 100, 100, 10, 1.0);
+    MPC test_mpc(100, 100, 100, 10, 1.0, 0.05);
     test_mpc.initialize_random();   
     std::cout << "Temperature after initialization: " << test_mpc.virtualTemperature() << std::endl;
 
@@ -44,6 +45,12 @@ int main() {
     #pragma omp parallel 
     {
         for (unsigned n = 0; n < Steps; n++) {
+            #pragma omp single 
+            {
+                test_mpc.GridShift << Rand::real_uniform(), Rand::real_uniform(), Rand::real_uniform();
+                test_mpc.updateBoxShift(0.1);     
+            }
+        
             #pragma omp for schedule(static) 
             for (unsigned part = 0; part < test_mpc.NumberOfParticles; part++) {
                 test_mpc.streamPlusCellAssignment(test_mpc.Fluid[part], 0.1); 

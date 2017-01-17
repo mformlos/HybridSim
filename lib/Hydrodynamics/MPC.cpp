@@ -1,9 +1,12 @@
 #include "MPC.h"
 
-MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperature) : 
+MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperature, double aShear) : 
     c {cos(130.0*M_PI/180.0)}, 
     s {sin(130.0*M_PI/180.0)},
-    Temperature(aTemperature) 
+    Temperature {aTemperature},
+    Shear {aShear}, 
+    delrx {0.0},
+    GridShift {Vector3d::Zero() }  
     {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly;
@@ -16,6 +19,7 @@ MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperatur
         for (unsigned i = 0; i < NumberOfParticles; i++) {
             Fluid.push_back(MPCParticle(1.0)); 
         }  
+        
     }
     
 void MPC::initialize_random() {
@@ -54,14 +58,14 @@ double MPC::virtualTemperature() {
 }
 
 void MPC::stream(MPCParticle& part, double dt) {
-    part.Position += part.Velocity*dt; 
+    part.Position += part.Velocity*dt + GridShift; 
     wrap(part); 
 } 
 
 void MPC::streamPlusCellAssignment(MPCParticle& part, double dt) {
-    part.Position += part.Velocity*dt; 
+    part.Position += part.Velocity*dt + GridShift; 
     wrap(part);
-    part.CellIndex = (int)part.Position(0) + (int)part.Position(1)*BoxSize[0] + (int)part.Position(2)*BoxSize[0]*BoxSize[1]; 
+    part.CellIndex = (int)part.Position(2) + (int)part.Position(1)*BoxSize[2] + (int)part.Position(0)*BoxSize[2]*BoxSize[1]; 
 }
 
 void MPC::stream(double dt) {
@@ -71,9 +75,13 @@ void MPC::stream(double dt) {
 }
 
 inline void MPC::wrap(MPCParticle& part) {
-    for (unsigned dim = 0; dim < 3; dim++) {
-        part.Position(dim) -= BoxSize[dim]*floor(part.Position(dim)/BoxSize[dim]); 
-    }
+    double cy {floor(part.Position(1)/BoxSize[1])}; 
+    part.Position(0) -= BoxSize[0]*floor(part.Position(0)/BoxSize[0]); 
+    part.Position(0) -= cy*delrx; 
+    part.Position(0) -= BoxSize[0]*floor(part.Position(0)/BoxSize[0]); 
+    part.Position(1) -= BoxSize[1]*cy; 
+    part.Position(2) -= BoxSize[2]*floor(part.Position(2)/BoxSize[2]); 
+    part.Velocity(0) -= cy*Shear*BoxSize[1]; 
 }
 
 void MPC::sort() {
@@ -82,7 +90,7 @@ void MPC::sort() {
     }
 
     for (auto& part : Fluid) {
-        part.CellIndex = (int)part.Position(0) + (int)part.Position(1)*BoxSize[0] + (int)part.Position(2)*BoxSize[0]*BoxSize[1]; 
+        part.CellIndex = (int)part.Position(2) + (int)part.Position(1)*BoxSize[2] + (int)part.Position(0)*BoxSize[2]*BoxSize[1]; 
         try {
             CellList.at(part.CellIndex).push_front(&part); 
         }
@@ -116,7 +124,7 @@ void MPC::sortOnly() {
 
 void MPC::updateParticleCellIndex() {
     for (auto& part : Fluid) {
-        part.CellIndex = (int)part.Position(0) + (int)part.Position(1)*BoxSize[0] + (int)part.Position(2)*BoxSize[0]*BoxSize[1];
+        part.CellIndex = (int)part.Position(2) + (int)part.Position(1)*BoxSize[2] + (int)part.Position(0)*BoxSize[2]*BoxSize[1];
     } 
 }
 
@@ -165,13 +173,23 @@ void MPC::sortVector() {
 
 void MPC::calculateCOMVel(unsigned Index) {
     double totalMass { }; 
+    double Ekin { };
+    unsigned count { }; 
     Vector3d COMVel {Vector3d::Zero()}; 
     for (auto& part : CellList[Index]) {
         COMVel += part -> Velocity * part -> Mass; 
+        Ekin += part -> Mass *  (part -> Velocity).squaredNorm(); 
         totalMass += part -> Mass; 
+        ++count; 
     }
-    if (totalMass > 0) CellData[Index].CellCOMVel = COMVel / totalMass;
-    else CellData[Index].CellCOMVel = Vector3d::Zero();  
+    if (count > 0) CellData[Index].CellCOMVel = COMVel / totalMass;
+    else CellData[Index].CellCOMVel = Vector3d::Zero();
+    if (count < 2) CellData[Index].CellThermo = false; 
+    else {
+        CellData[Index].CellThermo = true; 
+        Ekin = 0.5*(Ekin - totalMass*CellData[Index].CellCOMVel.squaredNorm());  
+        CellData[Index].CellScaling = sqrt(Rand::real_gamma(1.5*(count-1), Temperature)/Ekin);     
+    }
 }
 
 void MPC::drawRotation(unsigned Index) {
@@ -199,4 +217,11 @@ void MPC::drawRotation(unsigned Index) {
 void MPC::rotate(unsigned i) {
     int Index{Fluid[i].CellIndex}; 
     Fluid[i].Velocity = CellData[Index].CellCOMVel + CellData[Index].CellRotation*(Fluid[i].Velocity - CellData[Index].CellCOMVel); 
+    if (CellData[Index].CellThermo) Fluid[i].Velocity = CellData[Index].CellScaling * Fluid[i].Velocity + (1-CellData[Index].CellScaling)*CellData[Index].CellCOMVel; 
+    Fluid[i].Position -= GridShift;
+}
+
+void MPC::updateBoxShift(double dt) {
+    delrx += Shear*BoxSize[1]*dt; 
+    delrx -= BoxSize[0]*floor(delrx/BoxSize[0]); 
 }
