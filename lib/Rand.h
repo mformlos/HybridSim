@@ -1,29 +1,28 @@
-/*
- * Rand.h
- *
- *  Created on: Jan 4, 2017
- *      Author: maud
- */
+#ifndef NEWRAND_H_
+#define NEWRAND_H_
 
-#ifndef RAND_H_
-#define RAND_H_
-
+#include <omp.h>
+#include <thread>
 #include <random>
 #include <chrono>
+#include <algorithm>
+#include <iostream>
+
 
 
 using namespace std;
 
 class Rand{
-private:
-	static mt19937_64 generator;
-	static normal_distribution<double> dis_normal;
-	static uniform_real_distribution<double> dis_uniform;
-	static uniform_int_distribution<int> dis_intuniform;
-	static chi_squared_distribution<double> dis_chisquared;
-	static gamma_distribution<double> dis_gamma;
 public:
-	static void init();
+	static thread_local mt19937_64 generator;
+	static thread_local minstd_rand0 lc_generator; 
+    static thread_local normal_distribution<double> dis_normal;
+	static thread_local uniform_real_distribution<double> dis_uniform;
+	static thread_local uniform_int_distribution<int> dis_intuniform;
+	static thread_local chi_squared_distribution<double> dis_chisquared;
+	static thread_local gamma_distribution<double> dis_gamma;
+
+
 	static double real_normal(double, double);
 	static double real_normal();
 	static double real_uniform();
@@ -32,7 +31,10 @@ public:
 	static double real_chisquared(unsigned n);
 	//static double real_gamma(double shape);
 	static double real_gamma(double, double);
+
 	static void seed(int);
+	static void seed(std::seed_seq); 
+	static void warmup(unsigned); 
 
 };
 

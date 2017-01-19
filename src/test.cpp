@@ -1,13 +1,18 @@
 #include <sys/time.h>
 #include <omp.h>
 #include "Particle.h"
+#include "Molecule.h"
 #include "MPC.h"
 
 int main() {
     Particle test_part; 
     unsigned Steps = 30; 
     unsigned N = 10000; 
+    int tid, proc_num; 
     
+    Molecule mol(10, 1.0); 
+    
+    std::cout << mol[9].Position.transpose() << " " << mol[9].Mass << std::endl; 
     
     test_part.Velocity(0) = 1.0; 
     
@@ -42,8 +47,17 @@ int main() {
         std::cout << "current temperature: " << test_mpc.virtualTemperature() << std::endl; 
     }
     }*/
-    #pragma omp parallel 
+    #pragma omp parallel private(tid)
     {
+        tid = omp_get_thread_num(); 
+        if (tid == 0) {
+            proc_num = omp_get_num_procs();
+            std::cout << "You are using " << proc_num << " processes. " << std::endl;  
+        }
+        std::cout << "Hello from process: " << tid << std::endl;
+        Rand::seed(tid);
+        Rand::warmup(10000); 
+        
         for (unsigned n = 0; n < Steps; n++) {
             #pragma omp single 
             {

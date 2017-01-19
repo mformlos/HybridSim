@@ -1,21 +1,15 @@
-/*
- * Rand.cpp
- *
- *  Created on: Jan 4, 2017
- *      Author: maud
- */
-
 #include "Rand.h"
 
 using namespace std;
 
-//Define static members
-mt19937_64 Rand::generator(1);
-normal_distribution<double> Rand::dis_normal;
-uniform_real_distribution<double> Rand::dis_uniform;
-uniform_int_distribution<int> Rand::dis_intuniform;
-chi_squared_distribution<double> Rand::dis_chisquared;
-gamma_distribution<double> Rand::dis_gamma;
+//Define members
+thread_local mt19937_64 Rand::generator;
+thread_local minstd_rand0 Rand::lc_generator; 
+thread_local normal_distribution<double> Rand::dis_normal;
+thread_local uniform_real_distribution<double> Rand::dis_uniform;
+thread_local uniform_int_distribution<int> Rand::dis_intuniform;
+thread_local chi_squared_distribution<double> Rand::dis_chisquared;
+thread_local gamma_distribution<double> Rand::dis_gamma;
 
 double Rand::real_normal(){
 	return Rand::dis_normal(Rand::generator);
@@ -49,6 +43,21 @@ double Rand::real_gamma(double a, double b) {
 	return dis_gamma(generator);
 }
 
+
 void Rand::seed(int s) {
+    std::cout << "bla" << std::endl; 
+    /*lc_generator.seed(s); 
+    std::uint_least32_t seed_data[std::mt19937::state_size]; 
+    std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator)); 
+    std::seed_seq q(std::begin(seed_data), std::end(seed_data)); */
     generator.seed(s);
 }
+
+void Rand::seed(std::seed_seq s) {
+    generator.seed(s); 
+}
+
+void Rand::warmup(unsigned n) {
+    generator.discard(n); 
+}
+
