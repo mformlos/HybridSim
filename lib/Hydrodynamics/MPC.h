@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include "Particle.h"
-#include "NewRand.h"
+#include "Rand.h"
 
 struct CellMembers{
     Vector3d CellCOMVel;

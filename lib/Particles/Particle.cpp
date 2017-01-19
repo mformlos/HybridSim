@@ -36,19 +36,22 @@ MDParticle::MDParticle() :
     MPCParticle(), 
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
-    VerletList { } { }
+    VerletList { }, 
+    Bonds { } { }
 
 
 MDParticle::MDParticle(double aMass) : 
     MPCParticle(aMass), 
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
-    VerletList { } { }
+    VerletList { }, 
+    Bonds { } { }
 
     
 MDParticle::MDParticle(Vector3d aPosition, Vector3d aVelocity, double aMass) : 
     MPCParticle(aPosition, aVelocity, aMass), 
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
-    VerletList { } { }
+    VerletList { },
+    Bonds { } { }
     

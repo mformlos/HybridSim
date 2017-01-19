@@ -41,6 +41,7 @@ public:
     Vector3d Force; 
     Vector3d VerletPosition; 
     std::forward_list<MDParticle*> VerletList; 
+    std::forward_list<MDParticle*> Bonds; 
     
     //Constructors:
     MDParticle();  //Initialize everything to 0 except mass; 
