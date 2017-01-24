@@ -55,3 +55,8 @@ MDParticle::MDParticle(Vector3d aPosition, Vector3d aVelocity, double aMass) :
     VerletList { },
     Bonds { } { }
     
+    
+void MDParticle::setBond(MDParticle& bonded) {
+    Bonds.push_front(&bonded); 
+}
+    

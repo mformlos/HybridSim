@@ -15,6 +15,9 @@ public:
     MDParticle& operator[](unsigned); //random access
     const MDParticle& operator[](unsigned) const; 
     
+    void setChainBonds(); 
+    void setLink(unsigned, unsigned); 
+    
 }; 
 
 

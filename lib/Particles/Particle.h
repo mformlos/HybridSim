@@ -48,6 +48,8 @@ public:
     MDParticle(double);
     MDParticle(Vector3d, Vector3d, double);  //Initialize Position and Velocity; 
     ~MDParticle() = default; 
+    
+    void setBond(MDParticle&);
 }; 
 #endif
 

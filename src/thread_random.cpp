@@ -27,6 +27,13 @@ int main() {
     }
     std::cout << std::endl; 
     */
+ 
+    int bli {-2}, bla {3}; 
+    int blu {};
+    blu = floor((double)bli/bla); 
+    std::cout << "-2%3 equals " << blu << std::endl; 
+    
+
 
     #pragma omp parallel private(tid)
     { 
