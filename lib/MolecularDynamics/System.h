@@ -5,6 +5,8 @@
 #include <fstream>
 #include "Molecule.h"
 #include "Potentials.h"
+#include "Rand.h"
+#include "BoundaryConditions.h"
 
 
 class System {
@@ -29,8 +31,11 @@ public:
     
     void calculateForces(); 
     
+    // Initialize Molecules 
     void addMolecules(std::string); 
     void addLinks(std::string);  
+    void initializePositions(std::string); 
+    void initializeVelocitiesRandom(double); 
     
     void propagate(double dt); 
 

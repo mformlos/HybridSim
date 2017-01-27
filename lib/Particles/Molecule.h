@@ -14,9 +14,17 @@ public:
     
     MDParticle& operator[](unsigned); //random access
     const MDParticle& operator[](unsigned) const; 
+    void push_back(MDParticle&); 
     
     void setChainBonds(); 
     void setLink(unsigned, unsigned); 
+    void translate(Vector3d); 
+    
+    //Property getter functions
+    Vector3d centerOfMassPosition(); 
+    double radiusOfGyration(); 
+    
+    
     
 }; 
 
