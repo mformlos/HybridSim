@@ -11,6 +11,13 @@ inline void wrap(Particle& part, const std::array<unsigned, 3>& BoxSize, const d
     part.Velocity(0) -= cy*Shear*BoxSize[1]; 
 }
 
+inline void wrapVelocityBack(Particle& part, Particle& image, const std::array<unsigned, 3>& BoxSize, const double& Shear, const double& delrx) {
+    double cy {floor(part.Position(1)/BoxSize[1])};
+    part.Velocity = image.Velocity;  
+    part.Velocity(0) += cy*Shear*BoxSize[1]; 
+}
+
+
 inline Vector3d image(const Particle& part, const std::array<unsigned, 3>& BoxSize, const double& delrx) {
     double cy {floor(part.Position(1)/BoxSize[1])}; 
     Vector3d pos {Vector3d::Zero()}; 
@@ -22,6 +29,7 @@ inline Vector3d image(const Particle& part, const std::array<unsigned, 3>& BoxSi
     //part.Velocity(0) -= cy*Shear*BoxSize[1]; 
     return pos; 
 }
+
 
 inline Vector3d relative(const Particle& one, const Particle& two, const std::array<unsigned, 3>& BoxSize, const double& delrx) {
     Vector3d dist {two.Position - one.Position}; 

@@ -45,7 +45,6 @@ double Rand::real_gamma(double a, double b) {
 
 
 void Rand::seed(int s) {
-    std::cout << "bla" << std::endl; 
     /*lc_generator.seed(s); 
     std::uint_least32_t seed_data[std::mt19937::state_size]; 
     std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator)); 

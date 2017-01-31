@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "Particle.h"
 #include "Rand.h"
+#include "BoundaryConditions.h"
 
 struct CellMembers{
     Vector3d CellCOMVel;
@@ -27,6 +28,7 @@ public:
     double delrx;  
     Vector3d GridShift;
     std::vector<MPCParticle> Fluid; 
+    std::vector<MDParticle> Solute; 
     std::vector<std::forward_list<MPCParticle*>> CellList; 
     std::vector<CellMembers> CellData;  
     unsigned NumberOfCells; 
@@ -41,25 +43,30 @@ public:
     
     //MPC routine 
     void updateBoxShift(double dt);
-    void stream(MPCParticle&, double dt); 
-    void stream(double dt); 
+    void shiftGrid(); 
+    //void stream(MPCParticle&, double dt); 
+    //void stream(double dt); 
     void streamPlusCellAssignment(MPCParticle&, double);
-    void sort(); 
-    void sortOnly(); 
-    void updateParticleCellIndex(); 
+    //void sort(); 
+    void sortOnly();
+    void sortOnly(std::vector<MDParticle>&);  
+    void updateSoluteCellIndex(MDParticle&); 
     void calculateCOMVel(unsigned); 
     void drawRotation(unsigned); 
     void rotate(unsigned); //rotate a particle
+    void rotateSolute(unsigned); 
+    void getSolute(std::vector<MDParticle>);  
 
     
-    void collide(unsigned, Vector3d); //collide in specific box
-    void collide(); //collide in all boxes
+    
+    //void collide(unsigned, Vector3d); //collide in specific box
+    //void collide(); //collide in all boxes
 
     void sortVector(); 
     
     
     //Boundary conditions: 
-    inline void wrap(MPCParticle&);
+    //inline void wrap(MPCParticle&);
     
     
     //Properties: 
