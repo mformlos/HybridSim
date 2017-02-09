@@ -3,13 +3,15 @@
 #include "Particle.h"
 #include "Molecule.h"
 #include "MPC.h"
+#include "Velocity_Profile.h"
+#include "System.h"
 
 int main() {
     Particle test_part; 
-    unsigned Steps = 30; 
-    unsigned N = 10000; 
+    unsigned Steps = 10000; 
+  
     int tid, proc_num; 
-    unsigned Lx = 50, Ly = 50, Lz = 50; 
+    unsigned Lx = 20, Ly = 20, Lz = 20; 
     
     System sys_test(Lx,Ly,Lz); 
     
@@ -20,14 +22,21 @@ int main() {
     
     test_part.Velocity(0) = 1.0; 
     
-    MPC test_mpc(Lx, Ly, Lz, 10, 1.0, 0.05);
+    MPC test_mpc(Lx, Ly, Lz, 10, 0.5, 0.0);
     test_mpc.initialize_random();   
     std::cout << "Temperature after initialization: " << test_mpc.virtualTemperature() << std::endl;
     Molecule mol(1); 
     
-    mol.Monomers.front().Position << Rand::real_uniform()*100, Rand::real_uniform()*100, Rand::real_uniform()*100; 
-    mol.Monomers.front().Velocity << Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5; 
+    mol.Monomers.front().Position << Rand::real_uniform()*Lx, Rand::real_uniform()*Ly, Rand::real_uniform()*Lz; 
+    //mol.Monomers.front().Velocity << Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5; 
     
+    
+    std::cout << "part pos: " << mol.Monomers.front().Position.transpose() << std::endl; 
+    std::cout << "part vel: " << mol.Monomers.front().Velocity.transpose() << std::endl; 
+    VelocityProfile vel_prof{0.2}; 
+    
+    ofstream temp_file{}; 
+    temp_file.open("temperature.dat", ios::out | ios::trunc);     
     timeval start, end; 
 
     gettimeofday(&start, NULL);
@@ -69,9 +78,9 @@ int main() {
         for (unsigned n = 0; n < Steps; n++) {
             #pragma omp single 
             {
-                test_mpc.GridShift << Rand::real_uniform(), Rand::real_uniform(), Rand::real_uniform();
+                test_mpc.shiftGrid();
                 test_mpc.updateBoxShift(0.1);  
-                test_mpc.getSolute(mol.Monomers);    
+                //test_mpc.getSolute(mol.Monomers);    
             }
         
             #pragma omp for schedule(static) 
@@ -80,18 +89,22 @@ int main() {
                 //test_mpc.stream(test_mpc.Fluid[part], 0.1); 
             }
             
-            #pragma omp for schedule(static) 
+            /*#pragma omp for schedule(static) 
             for (unsigned sol = 0; sol < test_mpc.Solute.size(); sol++) {
                 test_mpc.updateSoluteCellIndex(test_mpc.Solute[sol]); 
-            }
+            }*/
             
             
             #pragma omp single 
             {
                 if (n%10==0) {
                     //test_mpc.updateParticleCellIndex();
-                    test_mpc.sortVector(); 
+                    test_mpc.sortVector();
+                    if (n > 500) {
+                        test_mpc(vel_prof); 
+                    }
                 }
+                
             } 
             
             #pragma omp sections
@@ -114,16 +127,20 @@ int main() {
                 test_mpc.rotate(part); 
             }
             
-            #pragma omp for schedule(static)
+            /*#pragma omp for schedule(static)
             for (unsigned sol = 0; sol < test_mpc.Solute.size(); sol++) {
                 test_mpc.rotate(sol); 
                 wrapVelocityBack(mol[sol], test_mpc.Solute[sol], test_mpc.BoxSize, test_mpc.Shear, test_mpc.delrx);
-            }
+            }*/
 
             //std::cout << "current temperature " << test_mpc.virtualTemperature() << std::endl; 
             #pragma omp single
             {
-                if(n%10==0) std::cout << "Step: " << n << " Temperature: " << test_mpc.virtualTemperature() << std::endl;
+                if(n%10==0) {
+                    double temp = test_mpc.virtualTemperature();
+                    std::cout << "Step: " << n << " Temperature: " << temp << std::endl;
+                    temp_file << n << " " << temp << std::endl; 
+                }
             } 
         }
     }
@@ -132,5 +149,10 @@ int main() {
     double realTime = ((end.tv_sec  - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;
     std::cout << "total time: " << realTime << " , time per particle and step: " << realTime/test_mpc.NumberOfParticles/Steps << std::endl;
 
+    ofstream fluid_profile{}; 
+    fluid_profile.open("fluid_profile.dat", ios::out | ios::trunc); 
+    vel_prof.print_result(fluid_profile);     
+    temp_file.close(); 
+    fluid_profile.close(); 
     return 0; 
 }

@@ -24,6 +24,9 @@ add_subdirectory(lib/Hydrodynamics)
 include_directories ("${PROJECT_SOURCE_DIR}/lib/MolecularDynamics")
 add_subdirectory(lib/MolecularDynamics)
 
+include_directories ("${PROJECT_SOURCE_DIR}/lib/Analysis")
+add_subdirectory(lib/Analysis)
+
 #find_package(Eigen3 REQUIRED)
 
 

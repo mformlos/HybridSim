@@ -71,8 +71,15 @@ public:
     
     //Properties: 
     double virtualTemperature(); 
-    
+    unsigned filledCells(); 
     Vector3d CenterOfMassVelocity(unsigned); 
+    
+    template<class UnaryFunc> 
+    void operator() (UnaryFunc& ufunc) const {
+        for (auto first = Fluid.cbegin(); first != Fluid.cend(); ++first) {
+            ufunc(*first); 
+        }        
+    }
      
 
 

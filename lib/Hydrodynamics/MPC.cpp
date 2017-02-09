@@ -49,16 +49,35 @@ void MPC::initialize_random() {
     }
 }
 
-double MPC::virtualTemperature() {
+/*double MPC::virtualTemperature() {
     double virtTemp { };
     for (auto& part : Fluid) {
         virtTemp += part.Velocity.squaredNorm(); 
     } 
     return (virtTemp/(3.*NumberOfParticles));    
+}*/
+
+double MPC::virtualTemperature() {
+    double virtTemp { }; 
+    for (auto& part : Fluid) {
+        int Index {part.CellIndex}; 
+        virtTemp += (part.Velocity - CellData[Index].CellCOMVel).squaredNorm();  
+        //virtTemp += part.Velocity.squaredNorm();  
+        
+    }
+    return (virtTemp/(3.*(NumberOfParticles-filledCells()))); 
+}
+
+inline unsigned MPC::filledCells() {
+    unsigned count {}; 
+    for (auto& data : CellData) {
+        if (data.CellThermo) ++count; 
+    }
+    return count; 
 }
 
 void MPC::shiftGrid() {
-    GridShift << Rand::real_uniform(), Rand::real_uniform(), Rand::real_uniform();
+    GridShift << Rand::real_uniform() -0.5, Rand::real_uniform()-0.5, Rand::real_uniform()-0.5;
 }
 
 
@@ -170,6 +189,7 @@ void MPC::rotate(unsigned i) {
     Fluid[i].Velocity = CellData[Index].CellCOMVel + CellData[Index].CellRotation*(Fluid[i].Velocity - CellData[Index].CellCOMVel); 
     if (CellData[Index].CellThermo) Fluid[i].Velocity = CellData[Index].CellScaling * Fluid[i].Velocity + (1-CellData[Index].CellScaling)*CellData[Index].CellCOMVel; 
     Fluid[i].Position -= GridShift;
+    wrap(Fluid[i],BoxSize, Shear, delrx); 
 }
 
 void MPC::rotateSolute(unsigned i) {
