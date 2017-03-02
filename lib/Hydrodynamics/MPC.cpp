@@ -88,7 +88,7 @@ void MPC::streamPlusCellAssignment(MPCParticle& part, double dt) {
     part.CellIndex = (int)part.Position(2) + (int)part.Position(1)*BoxSize[2] + (int)part.Position(0)*BoxSize[2]*BoxSize[1]; 
 }
 
-void MPC::updateSoluteCellIndex(MDParticle& solute) {
+void MPC::updateSoluteCellIndex(MPCParticle& solute) {
     solute.Position += GridShift; 
     wrap(solute, BoxSize, Shear, delrx);
     solute.CellIndex = (int)solute.Position(2) + (int)solute.Position(1)*BoxSize[2] + (int)solute.Position(0)*BoxSize[2]*BoxSize[1];
@@ -203,12 +203,42 @@ void MPC::updateBoxShift(double dt) {
     delrx -= BoxSize[0]*floor(delrx/BoxSize[0]); 
 }
 
-void MPC::getSolute(std::vector<MDParticle> sol) {
-    Solute = sol; 
-    for (auto& mono : Solute) {
-        wrap(mono, BoxSize, Shear, delrx);
+void MPC::getSolute(const std::vector<MDParticle>& sol) {
+    vector<MPCParticle>::iterator it {Solute.begin()};
+    for (auto& mono : sol) {
+        *it = mono; 
+        wrap(*it, BoxSize, Shear, delrx);
+        ++it; 
     }
 }
+
+void MPC::getSolute(const std::vector<Molecule>& Molecules) {
+    vector<MPCParticle>::iterator it {Solute.begin()}; 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            *it = mono; 
+            wrap(*it, BoxSize, Shear, delrx); 
+            ++it; 
+        }
+    }
+}
+
+void MPC::returnSolute(std::vector<Molecule>& Molecules) {
+    vector<MPCParticle>::iterator it {Solute.begin()}; 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) { 
+            wrapVelocityBack(mono, *it, BoxSize, Shear, delrx); 
+            ++it; 
+        }
+    }
+}
+
+void MPC::initializeSoluteVector(unsigned N) {
+    Solute.reserve(N); 
+    for (unsigned i = 0; i < N; i++) {
+        Solute.push_back(MPCParticle()); 
+    }
+} 
 
 
 

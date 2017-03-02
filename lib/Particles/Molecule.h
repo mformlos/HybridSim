@@ -7,6 +7,7 @@ class Molecule {
 public: 
 
     unsigned NumberOfMonomers; 
+    double Epot; 
     std::vector<MDParticle> Monomers; 
     
     Molecule(unsigned); //Standard Initialization of N Particles
@@ -22,6 +23,7 @@ public:
     
     //Property getter functions
     Vector3d centerOfMassPosition(); 
+    Vector3d centerOfMassVelocity(); 
     double radiusOfGyration(); 
     
     

@@ -22,7 +22,7 @@ int main() {
     
     test_part.Velocity(0) = 1.0; 
     
-    MPC test_mpc(Lx, Ly, Lz, 10, 0.5, 0.0);
+    MPC test_mpc(Lx, Ly, Lz, 10, 1.0, 0.0);
     test_mpc.initialize_random();   
     std::cout << "Temperature after initialization: " << test_mpc.virtualTemperature() << std::endl;
     Molecule mol(1); 
@@ -30,6 +30,9 @@ int main() {
     mol.Monomers.front().Position << Rand::real_uniform()*Lx, Rand::real_uniform()*Ly, Rand::real_uniform()*Lz; 
     //mol.Monomers.front().Velocity << Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5, Rand::real_uniform() - 0.5; 
     
+    unsigned N_s {sys_test.NumberOfParticles()};
+    std::cout << "number of solute particles: " << N_s << std::endl; 
+    test_mpc.initializeSoluteVector(N_s); 
     
     std::cout << "part pos: " << mol.Monomers.front().Position.transpose() << std::endl; 
     std::cout << "part vel: " << mol.Monomers.front().Velocity.transpose() << std::endl; 
@@ -80,25 +83,23 @@ int main() {
             {
                 test_mpc.shiftGrid();
                 test_mpc.updateBoxShift(0.1);  
-                //test_mpc.getSolute(mol.Monomers);    
+                test_mpc.getSolute(sys_test.Molecules);    
             }
         
             #pragma omp for schedule(static) 
             for (unsigned part = 0; part < test_mpc.NumberOfParticles; part++) {
                 test_mpc.streamPlusCellAssignment(test_mpc.Fluid[part], 0.1); 
-                //test_mpc.stream(test_mpc.Fluid[part], 0.1); 
             }
             
-            /*#pragma omp for schedule(static) 
+            #pragma omp for schedule(static) 
             for (unsigned sol = 0; sol < test_mpc.Solute.size(); sol++) {
                 test_mpc.updateSoluteCellIndex(test_mpc.Solute[sol]); 
-            }*/
+            }
             
             
             #pragma omp single 
             {
                 if (n%10==0) {
-                    //test_mpc.updateParticleCellIndex();
                     test_mpc.sortVector();
                     if (n > 500) {
                         test_mpc(vel_prof); 
@@ -127,15 +128,16 @@ int main() {
                 test_mpc.rotate(part); 
             }
             
-            /*#pragma omp for schedule(static)
+            #pragma omp for schedule(static)
             for (unsigned sol = 0; sol < test_mpc.Solute.size(); sol++) {
                 test_mpc.rotate(sol); 
-                wrapVelocityBack(mol[sol], test_mpc.Solute[sol], test_mpc.BoxSize, test_mpc.Shear, test_mpc.delrx);
-            }*/
+
+            }
 
             //std::cout << "current temperature " << test_mpc.virtualTemperature() << std::endl; 
             #pragma omp single
             {
+                test_mpc.returnSolute(sys_test.Molecules);
                 if(n%10==0) {
                     double temp = test_mpc.virtualTemperature();
                     std::cout << "Step: " << n << " Temperature: " << temp << std::endl;

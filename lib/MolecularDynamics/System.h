@@ -8,12 +8,12 @@
 #include "Rand.h"
 #include "BoundaryConditions.h"
 
-
 class System {
 public: 
     double Cutoff; 
     double VerletRadius; 
     double VerletRadiusSq; 
+    double delrx; 
     
     std::array<unsigned,3> BoxSize; 
     std::array<unsigned,3> Cells; 
@@ -29,15 +29,21 @@ public:
     void updateVerletLists(); 
     void checkVerletLists(); 
     
-    void calculateForces(); 
+    void calculateForces(bool calcEpot=false); 
     
     // Initialize Molecules 
-    void addMolecules(std::string); 
+    void addMolecules(std::string, double mass = 1.0); 
     void addLinks(std::string);  
     void initializePositions(std::string); 
     void initializeVelocitiesRandom(double); 
+    void setMoleculeCOM(unsigned, Vector3d); 
     
-    void propagate(double dt); 
+    
+    void propagate(double dt, bool calcEpot=false); 
+    
+    //getter:
+    
+    unsigned NumberOfParticles(); 
 
 };
 

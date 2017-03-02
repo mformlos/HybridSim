@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include "Particle.h"
+#include "Molecule.h"
 #include "Rand.h"
 #include "BoundaryConditions.h"
 
@@ -28,7 +29,7 @@ public:
     double delrx;  
     Vector3d GridShift;
     std::vector<MPCParticle> Fluid; 
-    std::vector<MDParticle> Solute; 
+    std::vector<MPCParticle> Solute; 
     std::vector<std::forward_list<MPCParticle*>> CellList; 
     std::vector<CellMembers> CellData;  
     unsigned NumberOfCells; 
@@ -50,12 +51,16 @@ public:
     //void sort(); 
     void sortOnly();
     void sortOnly(std::vector<MDParticle>&);  
-    void updateSoluteCellIndex(MDParticle&); 
+    void updateSoluteCellIndex(MPCParticle&); 
     void calculateCOMVel(unsigned); 
     void drawRotation(unsigned); 
     void rotate(unsigned); //rotate a particle
     void rotateSolute(unsigned); 
-    void getSolute(std::vector<MDParticle>);  
+    void getSolute(const std::vector<MDParticle>&); 
+    void getSolute(const std::vector<Molecule>&); 
+    void returnSolute(std::vector<Molecule>&); 
+    void initializeSoluteVector(unsigned N); 
+     
 
     
     

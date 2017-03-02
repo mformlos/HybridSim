@@ -3,7 +3,7 @@
 int main() {
     System sys_test(50,50,50); 
     
-    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain"); 
+    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain", 10.0); 
     sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-0-bonds"); 
     sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-0-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
@@ -57,11 +57,17 @@ int main() {
     std::cout << " , with boundaries: " << relative(sys_test.Molecules.front().Monomers.back(), sys_test.Molecules.front().Monomers.front(), sys_test.BoxSize, 0.0).transpose() << std::endl; 
     sys_test.updateVerletLists(); 
     sys_test.calculateForces(); 
-    for (int i = 0; i < 1000000; i++) {
-        if (!(i%1000)) {
-            std::cout << i << " " << sys_test.Molecules.front().radiusOfGyration() <<  std::endl;
+    ofstream gyr{"rgyrequil2.dat"}; 
+    
+    for (int i = 0; i < 10000; i++) {
+        if (!(i%100)) {
+            sys_test.propagate(0.01, true); 
+            double rgyr = sys_test.Molecules.front().radiusOfGyration();
+            Vector3d COM = sys_test.Molecules.front().centerOfMassPosition();
+            std::cout << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " COM: " << COM.transpose() << std::endl;
+            gyr << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " COM: " << COM.transpose() << std::endl; 
         } 
-        sys_test.propagate(0.001); 
+        else sys_test.propagate(0.01); 
     }
     
     

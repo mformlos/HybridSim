@@ -1,7 +1,8 @@
 #include "Molecule.h" 
 
 Molecule::Molecule(unsigned N) :
-    NumberOfMonomers {N} 
+    NumberOfMonomers {N}, 
+    Epot { } 
     {
         Monomers.reserve(N); 
         for (unsigned i = 0; i < NumberOfMonomers; i++) {
@@ -10,7 +11,8 @@ Molecule::Molecule(unsigned N) :
     }
 
 Molecule::Molecule(unsigned N, double Mass) :
-    NumberOfMonomers {N} 
+    NumberOfMonomers {N},
+    Epot { }
     {
         Monomers.reserve(N); 
         for (unsigned i = 0; i < NumberOfMonomers; i++) {
@@ -42,8 +44,17 @@ Vector3d Molecule::centerOfMassPosition() {
     for (auto& mono : Monomers) {
         COMPos += mono.Position; 
     }
-    COMPos /= NumberOfMonomers; 
+    COMPos /= (double)NumberOfMonomers; 
     return COMPos; 
+}
+
+Vector3d Molecule::centerOfMassVelocity() {
+    Vector3d COMVel {Vector3d::Zero()}; 
+    for (auto& mono : Monomers) {
+        COMVel += mono.Velocity; 
+    }
+    COMVel /= NumberOfMonomers; 
+    return COMVel; 
 }
 
 void Molecule::translate(Vector3d vec) {
