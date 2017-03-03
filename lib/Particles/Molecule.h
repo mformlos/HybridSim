@@ -20,12 +20,14 @@ public:
     void setChainBonds(); 
     void setLink(unsigned, unsigned); 
     void translate(Vector3d); 
+    void removeAngularMomentum(); 
     
     //Property getter functions
     Vector3d centerOfMassPosition(); 
     Vector3d centerOfMassVelocity(); 
     double radiusOfGyration(); 
-    
+    std::tuple<double, Matrix3d> gyrationTensor(); 
+    Vector3d rotationFrequency(); 
     
     
 }; 

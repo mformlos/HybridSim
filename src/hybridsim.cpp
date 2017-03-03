@@ -6,7 +6,7 @@
 
 int main() {
 
-    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 10000, MPCInterval;   
+    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 1000000, MPCInterval;   
     int tid, procs, maxt, inpar, dynamic, nested, nthreads;
     double StepSize = 0.01, StepSizeMPC = 0.1;
     
@@ -14,7 +14,7 @@ int main() {
     std::cout << "MPC every " << MPCInterval << " steps" << std::endl; 
     
     System sys(Lx,Ly,Lz); 
-    MPC mpc(Lx, Ly, Lz, 10, 1.0, 0.0);
+    MPC mpc(Lx, Ly, Lz, 5, 1.0, 0.0);
     VelocityProfile vel_prof{0.2}; 
     
     sys.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain", 10.0); 
@@ -38,6 +38,8 @@ int main() {
     
     fstream gyrfile {}; 
     gyrfile.open("rgyrmpc.dat", ios::out | ios::trunc);
+    
+    std::cout << "omega: " << sys.Molecules.front().rotationFrequency().transpose() << std::endl; 
     
     #pragma omp parallel private(tid)
     {
@@ -128,10 +130,11 @@ int main() {
                     double temp = mpc.virtualTemperature();
                     double rgyr = sys.Molecules.front().radiusOfGyration(); 
                     Vector3d COM = sys.Molecules.front().centerOfMassPosition();
-                    Vector3d COMVel {sys.Molecules.front().centerOfMassVelocity()}; 
+                    Vector3d COMVel {sys.Molecules.front().centerOfMassVelocity()};
+                    Vector3d rot = sys.Molecules.front().rotationFrequency();  
                     mpc(vel_prof); 
-                    std::cout << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
-                    gyrfile << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
+                    std::cout << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
+                    gyrfile << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
                 }
             }
         }

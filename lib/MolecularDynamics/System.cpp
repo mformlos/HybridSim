@@ -230,11 +230,11 @@ void System::initializeVelocitiesRandom(double Temperature) {
             for (unsigned i = 0; i < 3; i++) {
                 mono.Velocity(i) = Rand::real_uniform() - 0.5; 
             }
-            COMVel += mono.Velocity; 
         }
+        mol.removeAngularMomentum(); 
     }
-    COMVel /= totalMonomers; 
     for (auto& mol : Molecules) {
+        COMVel = mol.centerOfMassVelocity(); 
         for (auto& mono : mol.Monomers) {
             mono.Velocity -= COMVel; 
             EKin += mono.Mass*mono.Velocity.squaredNorm(); 

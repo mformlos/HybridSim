@@ -63,6 +63,14 @@ void Molecule::translate(Vector3d vec) {
     }
 }
 
+void Molecule::removeAngularMomentum() {
+    Vector3d COMPos {centerOfMassPosition()}; 
+    Vector3d omega {rotationFrequency()}; 
+    for (auto& mono : Monomers) {
+        mono.Velocity += (mono.Position-COMPos).cross(omega); 
+    }
+}
+
 double Molecule::radiusOfGyration() {
     double rgyr {}; 
     for (unsigned i = 0; i < NumberOfMonomers; i++) {
@@ -76,6 +84,48 @@ double Molecule::radiusOfGyration() {
     return rgyr; 
 }
 
+std::tuple<double, Matrix3d> Molecule::gyrationTensor() {
+    Matrix3d gyrTensor {Matrix3d::Zero()}; 
+    double rgyr { }; 
+    for (auto& mono : Monomers) {
+        for (unsigned alpha = 0; alpha < 3; alpha++) {
+            for (unsigned beta = alpha; beta < 3; beta++) {
+                gyrTensor(alpha, beta) += mono.Position(alpha)*mono.Position(beta); 
+            }
+        }
+    }
+    gyrTensor /= NumberOfMonomers; 
+    gyrTensor(1,0) = gyrTensor(0,1);
+    gyrTensor(2,0) = gyrTensor(0,2);
+    gyrTensor(2,1) = gyrTensor(1,2); 
+    rgyr = gyrTensor(0,0) + gyrTensor(1,1) + gyrTensor(2,2);
+    rgyr = sqrt(rgyr); 
+    return std::make_tuple(rgyr, gyrTensor);  
+}
 
+Vector3d Molecule::rotationFrequency() {
+    Vector3d omega {Vector3d::Zero()}; 
+    Matrix3d inertiaTensor {Matrix3d::Zero()}; 
+    Vector3d angularMomentum {Vector3d::Zero()};
+    Vector3d COMPos {centerOfMassPosition()}; 
+    Vector3d COMVel {centerOfMassVelocity()};  
+    for (auto& mono : Monomers) {   
+        Vector3d relPos {mono.Position - COMPos}; 
+        Vector3d relVel {mono.Velocity - COMVel}; 
+        double rsqr {relPos.squaredNorm()};
+        for (unsigned alpha = 0; alpha < 3; alpha++) {
+            inertiaTensor(alpha, alpha) += rsqr; 
+            for (unsigned beta = alpha; beta < 3; beta++) {
+                inertiaTensor(alpha, beta) -= relPos(alpha)*relPos(beta);       
+            }
+        }
+        angularMomentum += relPos.cross(relVel); 
+    }
+    inertiaTensor(1,0) = inertiaTensor(0,1); 
+    inertiaTensor(2,0) = inertiaTensor(0,2); 
+    inertiaTensor(2,1) = inertiaTensor(1,2); 
+    omega = inertiaTensor.ldlt().solve(angularMomentum); 
+    return omega; 
+}
  
 

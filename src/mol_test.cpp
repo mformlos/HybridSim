@@ -59,13 +59,14 @@ int main() {
     sys_test.calculateForces(); 
     ofstream gyr{"rgyrequil2.dat"}; 
     
-    for (int i = 0; i < 10000; i++) {
-        if (!(i%100)) {
+    for (int i = 0; i < 1000000; i++) {
+        if (!(i%1000)) {
             sys_test.propagate(0.01, true); 
             double rgyr = sys_test.Molecules.front().radiusOfGyration();
             Vector3d COM = sys_test.Molecules.front().centerOfMassPosition();
-            std::cout << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " COM: " << COM.transpose() << std::endl;
-            gyr << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " COM: " << COM.transpose() << std::endl; 
+            Vector3d rot = sys_test.Molecules.front().rotationFrequency(); 
+            std::cout << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " " << rot.transpose() <<  " COM: " << COM.transpose() << std::endl;
+            gyr << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << std::endl; 
         } 
         else sys_test.propagate(0.01); 
     }
