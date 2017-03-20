@@ -65,10 +65,19 @@ void Molecule::translate(Vector3d vec) {
 
 void Molecule::removeAngularMomentum() {
     Vector3d COMPos {centerOfMassPosition()}; 
-    Vector3d omega {rotationFrequency()}; 
+    Vector3d omega {RotationFrequency()}; 
     for (auto& mono : Monomers) {
         mono.Velocity += (mono.Position-COMPos).cross(omega); 
     }
+}
+
+double Molecule::KineticEnergy() {
+    double Ekin {0.0}; 
+    for (auto& mono : Monomers) {
+        Ekin += mono.Mass*mono.Velocity.squaredNorm(); 
+    }
+    Ekin /= 2; 
+    return Ekin; 
 }
 
 double Molecule::radiusOfGyration() {
@@ -84,13 +93,15 @@ double Molecule::radiusOfGyration() {
     return rgyr; 
 }
 
-std::tuple<double, Matrix3d> Molecule::gyrationTensor() {
+std::tuple<double, Matrix3d> Molecule::GyrationTensor() {
     Matrix3d gyrTensor {Matrix3d::Zero()}; 
+    Vector3d COMPos {centerOfMassPosition()}; 
     double rgyr { }; 
     for (auto& mono : Monomers) {
+        Vector3d relPos {mono.Position-COMPos}; 
         for (unsigned alpha = 0; alpha < 3; alpha++) {
             for (unsigned beta = alpha; beta < 3; beta++) {
-                gyrTensor(alpha, beta) += mono.Position(alpha)*mono.Position(beta); 
+                gyrTensor(alpha, beta) += relPos(alpha)*relPos(beta); 
             }
         }
     }
@@ -103,7 +114,7 @@ std::tuple<double, Matrix3d> Molecule::gyrationTensor() {
     return std::make_tuple(rgyr, gyrTensor);  
 }
 
-Vector3d Molecule::rotationFrequency() {
+Vector3d Molecule::RotationFrequency() {
     Vector3d omega {Vector3d::Zero()}; 
     Matrix3d inertiaTensor {Matrix3d::Zero()}; 
     Vector3d angularMomentum {Vector3d::Zero()};

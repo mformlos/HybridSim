@@ -39,7 +39,7 @@ public:
     MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double T, double gamma); 
     
     //Initialization: 
-    void initialize_random(); 
+    void initializeRandom(); 
     
     
     //MPC routine 

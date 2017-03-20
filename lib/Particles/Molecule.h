@@ -25,9 +25,11 @@ public:
     //Property getter functions
     Vector3d centerOfMassPosition(); 
     Vector3d centerOfMassVelocity(); 
+    double KineticEnergy(); 
+    double PotentialEnergy() {return Epot;}
     double radiusOfGyration(); 
-    std::tuple<double, Matrix3d> gyrationTensor(); 
-    Vector3d rotationFrequency(); 
+    std::tuple<double, Matrix3d> GyrationTensor(); 
+    Vector3d RotationFrequency(); 
     
     
 }; 

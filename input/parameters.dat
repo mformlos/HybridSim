@@ -1,0 +1,25 @@
+#### Parameter input file
+
+BoxX = 40
+BoxY = 40
+BoxZ = 40
+
+Shear = 0.0
+Temperature = 1.0
+
+MPCRho = 5
+
+MPCStep = 0.1
+MDStep = 0.01
+
+StartTime = 0.0
+SimTime = 10000.0
+EquilTime = 0.0
+
+OutputStepFile = ./input/SCNP-1-Steps
+MoleculeFile = ./input/SCNP-1-chain
+LinkFile = ./input/SCNP-1-bonds
+ConfigFile = ./input/SCNP-1-config
+StatisticsFile = ./results/SCNP-1-stats
+ConfigOutFile = ./results/SCNP-1-configout.pdb
+VelProfFile = ./results/SCNP-1-velprof

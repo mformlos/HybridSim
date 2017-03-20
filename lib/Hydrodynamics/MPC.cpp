@@ -22,7 +22,7 @@ MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperatur
         
     }
     
-void MPC::initialize_random() {
+void MPC::initializeRandom() {
     Vector3d COMVel(Vector3d::Zero()); 
     double EKin { };
     double VelScaling { };  
@@ -227,7 +227,9 @@ void MPC::returnSolute(std::vector<Molecule>& Molecules) {
     vector<MPCParticle>::iterator it {Solute.begin()}; 
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) { 
+            //std::cout << "vel before: " << mono.Velocity.transpose() << " ";
             wrapVelocityBack(mono, *it, BoxSize, Shear, delrx); 
+            //std::cout << "vel after: " << mono.Velocity.transpose() << std::endl; 
             ++it; 
         }
     }

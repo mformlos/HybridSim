@@ -1,11 +1,11 @@
 #include "System.h"
 
 int main() {
-    System sys_test(50,50,50); 
+    System sys_test(40,40,40, 0.0); 
     
-    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain", 10.0); 
-    sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-0-bonds"); 
-    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-0-config"); 
+    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-1-chain", 5.0); 
+    sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-1-bonds"); 
+    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-1-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
     
     unsigned monocount {0}, bondcount {0};  
@@ -45,33 +45,50 @@ int main() {
     rgyr_mean /= mol_count; 
     std::cout << "mean radius of gyration: " << rgyr_mean << std::endl; 
     
+    Particle test_part{}; 
+    test_part.Position(0) = 24.0; 
+    test_part.Position(1) = 13.0; 
+    test_part.Position(2) = 37.0; 
+    FILE* pdb {}; 
+    pdb = fopen("pdb_equil.pdb", "w");
     Vector3d vec {-COMPos.front()}; 
     vec[0] += sys_test.BoxSize[0]*0.5; 
     vec[1] += sys_test.BoxSize[1]*0.5; 
     vec[2] += sys_test.BoxSize[2]*0.5; 
     sys_test.Molecules.front().translate(vec);
+    sys_test.printPDB(pdb, 0);
+    
+    /*vec[0] = sys_test.BoxSize[0]*0.5+5.0; 
+    vec[1] = sys_test.BoxSize[1]*0.5+3.0;
+    vec[2] = sys_test.BoxSize[2]*0.5+12.0;  
+    sys_test.Molecules.front().translate(vec);
+    */
+    std::cout << "center of mass out of box: " << sys_test.Molecules.front().centerOfMassPosition().transpose() << std::endl;
+    std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
+    sys_test.printPDB(pdb, 0); 
+    
+    wrapCOM(sys_test.Molecules.front(), sys_test.BoxSize, 0.0, 0.5); 
+    sys_test.printPDB(pdb, 0); 
+    
+   
     
     std::cout << "new center of mass: " << sys_test.Molecules.front().centerOfMassPosition().transpose() << std::endl; 
     
-    std::cout << "normal distance: " << (sys_test.Molecules.front().Monomers.front().Position - sys_test.Molecules.front().Monomers.back().Position).transpose(); 
-    std::cout << " , with boundaries: " << relative(sys_test.Molecules.front().Monomers.back(), sys_test.Molecules.front().Monomers.front(), sys_test.BoxSize, 0.0).transpose() << std::endl; 
+    std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
     sys_test.updateVerletLists(); 
     sys_test.calculateForces(); 
-    ofstream gyr{"rgyrequil2.dat"}; 
+    ofstream gyr{"./results/NH-SCNP-1-stats.dat"}; 
+
     
     for (int i = 0; i < 1000000; i++) {
-        if (!(i%1000)) {
+        if (!(i%100)) {
             sys_test.propagate(0.01, true); 
-            double rgyr = sys_test.Molecules.front().radiusOfGyration();
-            Vector3d COM = sys_test.Molecules.front().centerOfMassPosition();
-            Vector3d rot = sys_test.Molecules.front().rotationFrequency(); 
-            std::cout << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " " << rot.transpose() <<  " COM: " << COM.transpose() << std::endl;
-            gyr << i << " " << rgyr << " " << sys_test.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << std::endl; 
+            sys_test.printStatistics(gyr, i*0.01);
         } 
         else sys_test.propagate(0.01); 
     }
     
-    
+    fclose(pdb); 
     
     
     return 0; 

@@ -6,20 +6,20 @@
 
 int main() {
 
-    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 1000000, MPCInterval;   
+    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 100000, COMwrapInterval = 1000, MPCInterval;   
     int tid, procs, maxt, inpar, dynamic, nested, nthreads;
-    double StepSize = 0.01, StepSizeMPC = 0.1;
+    double StepSize = 0.01, StepSizeMPC = 0.1, Shear = 0.0;
     
     MPCInterval = (unsigned)(StepSizeMPC/StepSize); 
     std::cout << "MPC every " << MPCInterval << " steps" << std::endl; 
     
-    System sys(Lx,Ly,Lz); 
-    MPC mpc(Lx, Ly, Lz, 5, 1.0, 0.0);
+    System sys(Lx,Ly,Lz, Shear); 
+    MPC mpc(Lx, Ly, Lz, 5, 1.0, Shear);
     VelocityProfile vel_prof{0.2}; 
     
-    sys.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain", 10.0); 
-    sys.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-0-bonds"); 
-    sys.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-0-config"); 
+    sys.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-1-chain", 5.0); 
+    sys.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-1-bonds"); 
+    sys.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-1-config"); 
     sys.initializeVelocitiesRandom(1.0); 
     Vector3d boxCenter {Lx*0.5, Ly*0.5, Lz*0.5}; 
     sys.setMoleculeCOM(0, boxCenter); 
@@ -28,7 +28,7 @@ int main() {
     sys.updateVerletLists(); 
     sys.calculateForces(); 
     
-    mpc.initialize_random();  
+    mpc.initializeRandom();  
     mpc.initializeSoluteVector(sys.NumberOfParticles()); 
     
     
@@ -37,9 +37,11 @@ int main() {
     gettimeofday(&start, NULL);
     
     fstream gyrfile {}; 
-    gyrfile.open("rgyrmpc.dat", ios::out | ios::trunc);
+    gyrfile.open("rgyrmpc2.dat", ios::out | ios::trunc);
+    FILE* pdb {}; 
+    pdb = fopen("pdb_mpc.pdb", "w");
     
-    std::cout << "omega: " << sys.Molecules.front().rotationFrequency().transpose() << std::endl; 
+    std::cout << "omega: " << sys.Molecules.front().RotationFrequency().transpose() << std::endl; 
     
     #pragma omp parallel private(tid)
     {
@@ -69,8 +71,9 @@ int main() {
         for (unsigned n = 0; n < Steps; n++) {
             #pragma omp single 
             {
-                mpc.updateBoxShift(StepSizeMPC); 
+                mpc.updateBoxShift(StepSize); 
                 sys.delrx=mpc.delrx; 
+                if (n%COMwrapInterval == 0) sys.wrapMoleculesCOM();
                 if (n%10 ==0) sys.propagate(StepSize, true); 
                 else sys.propagate(StepSize); 
             }
@@ -80,6 +83,9 @@ int main() {
                 {
                     mpc.shiftGrid();
                     mpc.getSolute(sys.Molecules); 
+                    for (auto& sol : mpc.Solute) {
+                        mpc.updateSoluteCellIndex(sol); 
+                    }
                 }
                 
                 #pragma omp for schedule(static) 
@@ -116,7 +122,7 @@ int main() {
             
                 #pragma omp for schedule(static)
                 for (unsigned sol = 0; sol < mpc.Solute.size(); sol++) {
-                    mpc.rotate(sol); 
+                    mpc.rotateSolute(sol); 
                 }
                 
                 #pragma omp single
@@ -131,8 +137,9 @@ int main() {
                     double rgyr = sys.Molecules.front().radiusOfGyration(); 
                     Vector3d COM = sys.Molecules.front().centerOfMassPosition();
                     Vector3d COMVel {sys.Molecules.front().centerOfMassVelocity()};
-                    Vector3d rot = sys.Molecules.front().rotationFrequency();  
+                    Vector3d rot = sys.Molecules.front().RotationFrequency();  
                     mpc(vel_prof); 
+                    sys.printPDB(pdb, n);
                     std::cout << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
                     gyrfile << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
                 }
@@ -144,7 +151,7 @@ int main() {
     double realTime = ((end.tv_sec  - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;
     std::cout << "total time: " << realTime << " , time per particle and step: " << realTime/mpc.NumberOfParticles/Steps << std::endl;
     ofstream vel_prof_file{}; 
-    vel_prof_file.open("vel_prof.dat", ios::out | ios::trunc); 
+    vel_prof_file.open("vel_prof2.dat", ios::out | ios::trunc); 
     vel_prof.print_result(vel_prof_file);
     vel_prof_file.close();      
     

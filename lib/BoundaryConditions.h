@@ -41,4 +41,20 @@ inline Vector3d relative(const Particle& one, const Particle& two, const std::ar
     return dist;
 } 
 
+inline void wrapCOM(Molecule& mol, const std::array<unsigned, 3>& BoxSize, const double& Shear, const double& delrx) {
+    Vector3d COMPos {mol.centerOfMassPosition()}; 
+    Vector3d Translate {Vector3d::Zero()}; 
+    double cy {floor(COMPos(1)/BoxSize[1])};
+    double velchange {};
+    Translate(0) = COMPos(0)-cy*delrx; 
+    Translate(0) = cy*delrx + BoxSize[0]*floor(Translate(0)/BoxSize[0]); 
+    Translate(1) = BoxSize[1]*cy; 
+    Translate(2) = BoxSize[2]*floor(COMPos(2)/BoxSize[2]); 
+    velchange = cy*Shear*BoxSize[1]; 
+    for (auto& mono : mol.Monomers) {
+        mono.Position -= Translate; 
+        mono.Velocity(0) -= velchange; 
+    }
+}
+
 #endif

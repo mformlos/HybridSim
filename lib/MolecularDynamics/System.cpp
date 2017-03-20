@@ -1,10 +1,11 @@
 #include "System.h"
 
-System::System(unsigned Lx, unsigned Ly, unsigned Lz) : 
+System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma) : 
     Cutoff {1.5}, 
     VerletRadius {2.0}, 
     VerletRadiusSq {4.0},
-    delrx {0.0} {
+    delrx {0.0}, 
+    Shear {gamma} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -18,11 +19,12 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz) :
     }
     
 
-System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz) : 
+System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma) : 
     Cutoff {aCutoff}, 
     VerletRadius {aVerletRadius}, 
     VerletRadiusSq {aVerletRadius*aVerletRadius},
-    delrx {0.0} {
+    delrx {0.0}, 
+    Shear {gamma} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -158,8 +160,9 @@ void System::calculateForces(bool calcEpot) {
     }
 }
 
-void System::addMolecules(std::string filename, double mass) {
-    std::ifstream file {filename}; 
+bool System::addMolecules(std::string filename, double mass) {
+    std::ifstream file(filename, ios::in);
+    if (!file.is_open()) return false; 
     std::string line; 
     unsigned current_mol, mol, bond1, bond2, monos, numberOfLines;   
     current_mol = 1; 
@@ -180,10 +183,12 @@ void System::addMolecules(std::string filename, double mass) {
     Molecules[mol-1].setChainBonds(); 
     current_mol = mol;     
     std::cout << "initialized " << Molecules.size() << " molecules" << std::endl;
+    return true; 
 }
 
-void System::addLinks(std::string filename) {
+bool System::addLinks(std::string filename) {
     std::ifstream file {filename};
+    if (!file.is_open()) return false; 
     unsigned mol, bond1, bond2, numberOfLines, count;  
     if (file.is_open()) {
         file >> numberOfLines;
@@ -194,10 +199,12 @@ void System::addLinks(std::string filename) {
         }    
     } 
     std::cout << "set " << count << " out of " << numberOfLines << " links" << std::endl; 
+    return true; 
 }
 
-void System::initializePositions(std::string filename) {
+bool System::initializePositions(std::string filename) {
     std::ifstream file {filename};
+    if (!file.is_open()) return false; 
     double x, y, z;  
     unsigned count {}; 
     if (file.is_open()) {  
@@ -211,13 +218,14 @@ void System::initializePositions(std::string filename) {
                 }
                 else {
                     std::cout << "only " << count << " monomers were initialized" << std::endl; 
-                    return; 
+                    return false; 
                 }
             }
         }
     }
     std::cout << "all " << count << " monomers were initialized" << std::endl; 
     if (file >> x >> y >> z) std::cout << "...but there is more data..." << std::endl; 
+    return true; 
 }
 
 void System::initializeVelocitiesRandom(double Temperature) {
@@ -265,6 +273,16 @@ void System::setMoleculeCOM(unsigned molIndex, Vector3d newCOM) {
     }
 }
 
+void System::centerMolecule(unsigned molIndex) {
+    Vector3d BoxCenter(BoxSize[0]*0.5, BoxSize[1]*0.5, BoxSize[2]*0.5); 
+    setMoleculeCOM(molIndex, BoxCenter); 
+}
+
+void System::wrapMoleculesCOM() {
+    for (auto& mol : Molecules) {
+        wrapCOM(mol, BoxSize, Shear, delrx); 
+    }
+}
 void System::propagate(double dt, bool calcEpot) {
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
@@ -284,6 +302,7 @@ void System::propagate(double dt, bool calcEpot) {
 }
 
 
+
 unsigned System::NumberOfParticles() {
     unsigned count {}; 
     for (auto& mol : Molecules) {
@@ -292,6 +311,93 @@ unsigned System::NumberOfParticles() {
     return count; 
 }
 
+unsigned System::NumberOfMolecules() {return Molecules.size();}
+
+double System::KineticEnergy() {
+    double Ekin = 0.0; 
+    for (auto& mol : Molecules) {
+        Ekin += mol.KineticEnergy(); 
+    }
+    return Ekin; 
+}
+
+double System::PotentialEnergy() {
+    double Epot {0.0}; 
+    for (auto& mol : Molecules) {
+        Epot += mol.PotentialEnergy(); 
+    }
+    return Epot; 
+}
+
+std::tuple<double, Matrix3d> System::GyrationTensor() {
+    double rgyr {}; 
+    Matrix3d gyrTensor {Matrix3d::Zero()}; 
+    std::tuple<double, Matrix3d> gyrMol {}; 
+    for (auto& mol : Molecules) {
+        gyrMol = mol.GyrationTensor(); 
+        gyrTensor += std::get<1>(gyrMol); 
+        rgyr += std::get<0>(gyrMol); 
+    }
+    gyrTensor /= Molecules.size(); 
+    rgyr /= Molecules.size(); 
+    return std::make_tuple(rgyr, gyrTensor);    
+}
+
+Vector3d System::RotationFrequency() {
+    Vector3d omega {Vector3d::Zero()}; 
+    for (auto& mol : Molecules) {
+        omega += mol.RotationFrequency(); 
+    }
+    omega /= Molecules.size(); 
+    return omega; 
+}
+
+void System::printPDB(FILE* pdb, int step, bool velocs) {
+    int mol_count{0}; 
+    fprintf(pdb, "MODEL     %d \n", step);
+    for (auto& mol : Molecules) {
+		mol_count++;
+		int mono_count{0}; 
+		for (auto& mono : mol.Monomers) {
+		    if (velocs) {
+		        fprintf(pdb, "ATOM %6d  C   GLY    %2d     %7.3f %7.3f %7.3f %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2), mono.Velocity(0), mono.Velocity(1), mono.Velocity(2));
+		    }
+			else {
+			    fprintf(pdb, "ATOM %6d  C   GLY    %2d     %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2));
+		    }
+		}	
+        fprintf(pdb, "TER \n");
+    }
+    fprintf(pdb, "ENDMDL \n");         
+}
+
+void System::printStatistics(std::ofstream& os, double time) {
+    os.precision(6); 
+    double Ekin {KineticEnergy()}, Epot {PotentialEnergy()}; 
+    Vector3d Omega {RotationFrequency()}; 
+    std::tuple<double, Matrix3d> GyrTuple {GyrationTensor()};
+    Matrix3d GyrTensor {std::get<1>(GyrTuple)}; 
+    os.precision(6); 
+    os.width(14); 
+    os << time << " "; 
+    os.width(14); 
+    os << Ekin << " ";
+    os.width(14); 
+    os << Epot << " "; 
+    for (unsigned i = 0; i < 3; i++) {
+        os.width(14);
+        os << Omega(i) << " "; 
+    }
+    os.width(14);
+    os << std::get<0>(GyrTuple); 
+    for (unsigned i = 0; i < 3; i++) {
+        for (unsigned j = 0; j < 3; j++) {
+            os.width(14); 
+            os << GyrTensor(i,j) << " ";
+        } 
+    }
+    os << std::endl;  
+}
 
 
     

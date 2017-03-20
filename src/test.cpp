@@ -13,17 +13,18 @@ int main() {
     int tid, proc_num; 
     unsigned Lx = 20, Ly = 20, Lz = 20; 
     
-    System sys_test(Lx,Ly,Lz); 
+    System sys_test(Lx,Ly,Lz, 0.0); 
     
     sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-0-chain"); 
     sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-0-bonds"); 
     sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-0-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
     
+    
     test_part.Velocity(0) = 1.0; 
     
     MPC test_mpc(Lx, Ly, Lz, 10, 1.0, 0.0);
-    test_mpc.initialize_random();   
+    test_mpc.initializeRandom();   
     std::cout << "Temperature after initialization: " << test_mpc.virtualTemperature() << std::endl;
     Molecule mol(1); 
     
