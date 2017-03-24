@@ -1,22 +1,22 @@
 #include "Molecule.h" 
 
-Molecule::Molecule(unsigned N) :
+Molecule::Molecule(unsigned N, int IdZero) :
     NumberOfMonomers {N}, 
     Epot { } 
     {
         Monomers.reserve(N); 
         for (unsigned i = 0; i < NumberOfMonomers; i++) {
-            Monomers.push_back(MDParticle()); 
+            Monomers.push_back(MDParticle(i+IdZero)); 
         }
     }
 
-Molecule::Molecule(unsigned N, double Mass) :
+Molecule::Molecule(unsigned N, double Mass, int IdZero) : 
     NumberOfMonomers {N},
     Epot { }
     {
         Monomers.reserve(N); 
         for (unsigned i = 0; i < NumberOfMonomers; i++) {
-            Monomers.push_back(MDParticle(Mass)); 
+            Monomers.push_back(MDParticle(i+IdZero, Mass)); 
         }
     }
 
@@ -25,8 +25,9 @@ MDParticle& Molecule::operator[](unsigned i) {return Monomers[i];}
 const MDParticle& Molecule::operator[](unsigned i) const {return Monomers[i];}
 
 void Molecule::push_back(MDParticle& part) {
-    ++NumberOfMonomers; 
+    part.Identifier = NumberOfMonomers; 
     Monomers.push_back(part); 
+    ++NumberOfMonomers; 
 }
 
 void Molecule::setChainBonds() {

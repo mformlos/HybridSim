@@ -40,15 +40,17 @@ public:
 class MDParticle : public MPCParticle {
 public: 
     //Members: 
+    int Identifier; 
     Vector3d Force; 
     Vector3d VerletPosition; 
     std::forward_list<MDParticle*> VerletList; 
     std::forward_list<MDParticle*> Bonds; 
+
     
     //Constructors:
-    MDParticle();  //Initialize everything to 0 except mass; 
-    MDParticle(double);
-    MDParticle(Vector3d, Vector3d, double);  //Initialize Position and Velocity; 
+    MDParticle(int);  //Initialize everything to 0 except mass; 
+    MDParticle(int, double);
+    MDParticle(int, Vector3d, Vector3d, double);  //Initialize Position and Velocity; 
     ~MDParticle() = default; 
     
     void setBond(MDParticle&);

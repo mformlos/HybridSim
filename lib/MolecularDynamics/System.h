@@ -7,6 +7,7 @@
 #include "Potentials.h"
 #include "Rand.h"
 #include "BoundaryConditions.h"
+#include "../Exceptions/LibraryException.h"
 
 class System {
 public: 

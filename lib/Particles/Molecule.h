@@ -5,13 +5,13 @@
 
 class Molecule {
 public: 
-
+    
     unsigned NumberOfMonomers; 
     double Epot; 
     std::vector<MDParticle> Monomers; 
     
-    Molecule(unsigned); //Standard Initialization of N Particles
-    Molecule(unsigned, double); //Initialization of N Particles of mass M
+    Molecule(unsigned, int StartParticleIndex = 0); //Standard Initialization of N Particles
+    Molecule(unsigned, double, int StartParticleIndex = 0); //Initialization of N Particles of mass M
     
     MDParticle& operator[](unsigned); //random access
     const MDParticle& operator[](unsigned) const; 

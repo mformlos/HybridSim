@@ -27,6 +27,9 @@ add_subdirectory(lib/MolecularDynamics)
 include_directories ("${PROJECT_SOURCE_DIR}/lib/Analysis")
 add_subdirectory(lib/Analysis)
 
+include_directories ("${PROJECT_SOURCE_DIR}/lib/Exceptions")
+add_subdirectory(lib/Exceptions)
+
 #find_package(Eigen3 REQUIRED)
 
 

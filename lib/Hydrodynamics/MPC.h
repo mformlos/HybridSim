@@ -86,6 +86,8 @@ public:
         }        
     }
      
+    
+    void printFluid(FILE*, double); 
 
 
 }; 

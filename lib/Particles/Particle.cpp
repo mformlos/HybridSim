@@ -33,24 +33,27 @@ bool MPCParticle::operator< (const MPCParticle& part) const {
 }
 	
 
-MDParticle::MDParticle() : 
+MDParticle::MDParticle(int Index) : 
     MPCParticle(), 
+    Identifier{ Index },
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
     VerletList { }, 
     Bonds { } { }
 
 
-MDParticle::MDParticle(double aMass) : 
+MDParticle::MDParticle(int Index, double aMass) : 
     MPCParticle(aMass), 
+    Identifier{ Index },
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
     VerletList { }, 
     Bonds { } { }
 
     
-MDParticle::MDParticle(Vector3d aPosition, Vector3d aVelocity, double aMass) : 
+MDParticle::MDParticle(int Index, Vector3d aPosition, Vector3d aVelocity, double aMass) : 
     MPCParticle(aPosition, aVelocity, aMass), 
+    Identifier{ Index },
     Force { Vector3d::Zero() }, 
     VerletPosition { Vector3d::Zero() }, 
     VerletList { },

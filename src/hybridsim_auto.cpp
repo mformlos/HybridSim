@@ -6,11 +6,11 @@
 #include "System.h"
 
 int main(int argc, char* argv[]) {
-    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, TotalSteps {}; 
+    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, TotalSteps {}, n {}; 
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
     double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, Temperature{}, Time{};
     bool ParameterInitialized{}; 
-    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}; 
+    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}; 
     std::vector<unsigned> OutputSteps; 
     std::vector<unsigned>::iterator OutputStepsIt{};
     
@@ -64,6 +64,8 @@ int main(int argc, char* argv[]) {
     if (!ParameterInitialized) return EXIT_FAILURE;
     ConfigOutFile = extractParameter<std::string>("ConfigOutFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
+    FluidFile = extractParameter<std::string>("FluidFile", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
     VelProfFile = extractParameter<std::string>("VelProfFile", inputfile, ParameterInitialized);
     
     
@@ -113,7 +115,7 @@ int main(int argc, char* argv[]) {
     } 
     
     if (!Sys.initializePositions(ConfigFile)) {
-        std::cout << "ConfigFile does not exist or contains to little lines!" << std::endl; 
+        std::cout << "ConfigFile does not exist or contains too little lines!" << std::endl; 
         return EXIT_FAILURE; 
     } 
  
@@ -125,8 +127,17 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;  
     }
     
-    Sys.updateVerletLists(); 
-    Sys.calculateForces(); 
+    
+    try {
+        Sys.updateVerletLists(); 
+        Sys.calculateForces(); 
+    }
+    catch (const LibraryException &ex) {
+        std::cout << ex.what() << std::endl; 
+        std::cout << "bad initial configuration! Terminating program." << std::endl;   
+        return EXIT_FAILURE; 
+    }
+    
     
     //////////////////////////////////
     
@@ -152,13 +163,16 @@ int main(int argc, char* argv[]) {
     FILE* PDBout{}; 
     PDBout = fopen(ConfigOutFile.c_str(), "w"); 
     
+    FILE* FluidFilePointer {}; 
+    
     timeval start {}, end {};
     gettimeofday(&start, NULL); 
     
     ////////////////////////////////////////
     
     /////// OPENMP BEGINNING & TESTS ///////
-    #pragma omp parallel private(tid)
+    
+    #pragma omp parallel private(tid, n)
     {
         /////// OMP PARAMETERS ///////
         tid = omp_get_thread_num(); 
@@ -188,16 +202,30 @@ int main(int argc, char* argv[]) {
         
         ///////////////////////////////////
         ////// MAIN SIMULATION LOOP ///////
-        for (unsigned n = 0; n <= TotalSteps; n++) {
+        for (n = 0; n <= TotalSteps; n++) {
             #pragma omp single 
             {
                 Time += MDStep; 
                 Mpc.updateBoxShift(MDStep); 
                 Sys.delrx = Mpc.delrx; 
                 if (n%COMWrapInterval==0) Sys.wrapMoleculesCOM(); 
-                if (n == *OutputStepsIt) Sys.propagate(MDStep, true); 
-                else Sys.propagate(MDStep);  
+                try {
+                    if (n == *OutputStepsIt) Sys.propagate(MDStep, true);
+                    else Sys.propagate(MDStep);
+                }
+                catch (const LibraryException &ex) {
+                    //std::cout << ex.what() << std::endl; 
+                    Sys.printPDB(PDBout, n);
+                    FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
+                    Mpc.printFluid(FluidFilePointer, Time); 
+                    fclose(PDBout);  
+                    fclose(FluidFilePointer);    
+                    std::cout << "Terminating..." << std::endl;   
+                    std::terminate(); 
+                }  
+                
             }
+            
             
             //////// MPC STEP /////////
             if (n%MPCInterval == 0) {
@@ -252,7 +280,9 @@ int main(int argc, char* argv[]) {
                 {
                     Mpc.returnSolute(Sys.Molecules);
                 } 
+                #pragma omp barrier
             } 
+            
             ////////// MPC STEP FINISHED //////////
             
             ////////// OUTPUT ////////////
@@ -271,6 +301,8 @@ int main(int argc, char* argv[]) {
     
     
     } 
+    
+
     //////// PARALLEL SECTION END //////////
     
     gettimeofday(&end, NULL); 
@@ -284,7 +316,11 @@ int main(int argc, char* argv[]) {
         VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
         VelProf.print_result(VelProfFileStream); 
     }
-    fclose(PDBout);     
+    fclose(PDBout);   
+
+    FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
+    Mpc.printFluid(FluidFilePointer, Time); 
+    fclose(FluidFilePointer);  
         
     return EXIT_SUCCESS;
 }

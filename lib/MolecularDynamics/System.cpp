@@ -69,10 +69,7 @@ void System::updateVerletLists() {
                 CellList[CellNumber[0]][CellNumber[1]][CellNumber[2]].push_front(&mono); 
             }
             catch (std::exception& e) {
-                std::cout << "The following exception occurred : " << e.what() << std::endl;
-                std::cout << "for a particle with position "  << mono.Position.transpose() << std::endl;
-                throw std::out_of_range("OOR");  
-                return; 
+                throw CellAllocationException(mono, CellNumber);  
             }
         }
     }
@@ -137,6 +134,9 @@ void System::calculateForces(bool calcEpot) {
 
                 }
                 force_abs = RLJ_Force(radius2); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    throw(RLJException(mono.Identifier, other->Identifier, force_abs)); 
+                }
                 force = relPos*force_abs; 
                 mono.Force -= force;  
             }
@@ -151,6 +151,10 @@ void System::calculateForces(bool calcEpot) {
                     
                 }    
                 force_abs = FENE_Force(radius2); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    throw(FENEException(mono.Identifier, bonded->Identifier, force_abs)); 
+                }
+                //std::cout << mono.Identifier << " " << bonded->Identifier << " " << radius2 << " " << force_abs << std::endl; 
                 force = relPos*force_abs; 
                 mono.Force -= force; 
                 bonded -> Force += force; 
@@ -164,15 +168,17 @@ bool System::addMolecules(std::string filename, double mass) {
     std::ifstream file(filename, ios::in);
     if (!file.is_open()) return false; 
     std::string line; 
-    unsigned current_mol, mol, bond1, bond2, monos, numberOfLines;   
+    unsigned current_mol, mol, bond1, bond2, monos, numberOfLines, mono_count;   
     current_mol = 1; 
     monos = 0; 
+    mono_count = 0; 
     if (file.is_open()) {
         std::cout << "file " << filename << " successfully opened" << std::endl; 
         file >> numberOfLines; 
         while (file >> mol >> bond1 >> bond2) {
             if (mol != current_mol) {
-                Molecules.push_back(Molecule(monos, mass)); 
+                mono_count += monos;
+                Molecules.push_back(Molecule(monos, mass, mono_count)); 
                 Molecules[mol-2].setChainBonds(); 
                 current_mol = mol;               
             }
@@ -183,6 +189,14 @@ bool System::addMolecules(std::string filename, double mass) {
     Molecules[mol-1].setChainBonds(); 
     current_mol = mol;     
     std::cout << "initialized " << Molecules.size() << " molecules" << std::endl;
+    
+    /*for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            std::cout << mono.Identifier << " "; 
+        }
+        std::cout << std::endl; 
+    }*/
+    
     return true; 
 }
 
@@ -365,10 +379,12 @@ void System::printPDB(FILE* pdb, int step, bool velocs) {
 			else {
 			    fprintf(pdb, "ATOM %6d  C   GLY    %2d     %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2));
 		    }
+		    mono_count++; 
 		}	
         fprintf(pdb, "TER \n");
     }
-    fprintf(pdb, "ENDMDL \n");         
+    fprintf(pdb, "ENDMDL \n");   
+    fflush(pdb);       
 }
 
 void System::printStatistics(std::ofstream& os, double time) {
