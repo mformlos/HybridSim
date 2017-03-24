@@ -1,0 +1,24 @@
+BoxX = 
+BoxY = 
+BoxZ = 
+
+Shear = 
+Temperature = 
+
+MPCRho = 
+
+MPCStep = 
+MDStep = 
+
+StartTime = 
+SimTime = 
+EquilTime = 
+
+OutputStepFile = steps
+MoleculeFile = chain
+LinkFile = bonds
+ConfigFile = config
+StatisticsFile = stats
+ConfigOutFile = configout.pdb
+VelProfFile = velprof
+FluidFile = fluid
