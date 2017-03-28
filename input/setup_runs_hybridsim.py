@@ -12,7 +12,7 @@ Box = namedtuple("Box", ["Lx", "Ly", "Lz"])
 
 ParameterSets = []
 
-ParameterSets.append(Parameter(Box(40, 40, 40), [0.0, 0.0001, 0.0002], 1.0, 5, 0.1, 0.01, 1000.0, 100.0,[i for i in range(5)]))
+ParameterSets.append(Parameter(Box(40, 40, 40), [0.0, 0.0001], 1.0, 5, 0.1, 0.01, 1000.0, 100.0,[i for i in range(1)]))
 #ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.0001, 0.0002], 0.0, 5, 0.01, 0.1, 1000.0, 100.0,[i for i in range(50)]))
 
 submit_files =open("runs_to_submit.dat", "w")

@@ -1,11 +1,22 @@
 #include <sys/time.h>
 #include <omp.h>
+#include <csignal>
 #include "MPC.h"
 #include "Velocity_Profile.h"
 #include "HelperFunctions.h"
 #include "System.h"
 
+int SignalCaught {}; 
+void signalHandler(int signum) 
+{
+    SignalCaught = signum; 
+    std::cout << "signal " << signum << " caught!" << std::endl; 
+}
+
+
 int main(int argc, char* argv[]) {
+    SignalCaught = 0;
+    signal(SIGINT, signalHandler); 
     unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, TotalSteps {}, n {}; 
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
     double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, Temperature{}, Time{};
@@ -205,6 +216,7 @@ int main(int argc, char* argv[]) {
         for (n = 0; n <= TotalSteps; n++) {
             #pragma omp single 
             {
+                
                 Time += MDStep; 
                 Mpc.updateBoxShift(MDStep); 
                 Sys.delrx = Mpc.delrx; 
@@ -288,6 +300,16 @@ int main(int argc, char* argv[]) {
             ////////// OUTPUT ////////////
             #pragma omp single 
             {
+                if (SignalCaught) {
+                    std::cout << "writing job data..." << std::endl; 
+                    Sys.printPDB(PDBout, n);
+                    FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
+                    Mpc.printFluid(FluidFilePointer, Time); 
+                    fclose(PDBout);  
+                    fclose(FluidFilePointer);    
+                    std::cout << "Terminating..." << std::endl;   
+                    std::terminate(); 
+                }
                 if (n == *OutputStepsIt) {
                     Sys.printStatistics(StatisticsStream, Time); 
                     Sys.printPDB(PDBout, n); 

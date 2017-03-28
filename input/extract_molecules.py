@@ -28,7 +28,7 @@ for i in range(1,last_molecule+1):
 
     
 for i in range(len(molecule_sizes)): 
-    filename = "SCNP-"+str(i)+"-chain" 
+    filename = "SCNPs/SCNP-"+str(i)+"-chain" 
     with open(filename, "w") as outF: 
         outF.write(" %10d \n" %molecule_sizes[i])
         for j in range(mono_count,mono_count+molecule_sizes[i]): 
@@ -60,7 +60,7 @@ for i in range(1,last_molecule+1):
     molecule_bonds.append(molecule.count(i))
     
 for i in range(len(molecule_bonds)): 
-    filename = "SCNP-"+str(i)+"-bonds"
+    filename = "SCNPs/SCNP-"+str(i)+"-bonds"
     with open(filename, "w") as outF: 
         outF.write(" %10d \n" %molecule_bonds[i])
         for j in range(mono_count,mono_count+molecule_bonds[i]): 
@@ -72,13 +72,13 @@ for i in range(len(molecule_bonds)):
 
 current_mol = 0
 count = 0
-outF = open("SCNP-"+str(current_mol)+"-config", "w")
+outF = open("SCNPs/SCNP-"+str(current_mol)+"-config", "w")
 for line in config_file: 
     print current_mol
     if (count > molecule_sizes[current_mol]):
         outF.close()
         current_mol += 1
-        outF = open("SCNP-"+str(current_mol)+"-config", "w")
+        outF = open("SCNPs/SCNP-"+str(current_mol)+"-config", "w")
         count = 0
     count += 1
     outF.write(line) 
