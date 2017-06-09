@@ -49,6 +49,69 @@ void MPC::initializeRandom() {
     }
 }
 
+void MPC::initializeProfile() {
+    Vector3d COMVel(Vector3d::Zero()); 
+    double EKin { };
+    double VelScaling { };  
+    
+    for (auto& part : Fluid) {
+        for (unsigned dim = 0; dim < 3; dim++) {
+            part.Position(dim) = BoxSize[dim]*(Rand::real_uniform()); 
+            part.Velocity(dim) = Rand::real_uniform()-0.5; 
+        }
+        COMVel += part.Velocity; 
+    }
+    
+    COMVel /= NumberOfParticles; 
+    
+    for (auto& part : Fluid) {
+        part.Velocity -= COMVel; 
+        EKin += part.Velocity.squaredNorm(); 
+    }
+    
+    VelScaling = sqrt(3.*NumberOfParticles*Temperature/EKin); 
+    
+    for(auto& part : Fluid) {
+        part.Velocity *= VelScaling;
+        part.Velocity(0) += (part.Position(1)-BoxSize[1]*0.5)*Shear; 
+    } 
+}
+
+
+bool MPC::initializeFile(std::string filename) {
+    std::ifstream file {filename}; 
+    if (!file.is_open()) return false; 
+    double x, y, z, vx, vy, vz; 
+    unsigned count{0};
+    file >> x; 
+    for (auto& part : Fluid) {
+        if (file >> x >> y >> z >> vx >> vy >> vz) {
+            part.Position(0) = x; 
+            part.Position(1) = y; 
+            part.Position(2) = z; 
+            if (!isInBox(part)) {
+                std::cout << "Position " << part.Position.transpose() << " does not lie within box boundaries!" << std::endl; 
+                part.Position = Vector3d::Zero(); 
+                return false; 
+            }
+            part.Velocity(0) = vx; 
+            part.Velocity(1) = vy; 
+            part.Velocity(2) = vz; 
+            wrap(part, BoxSize, Shear, delrx);
+            count++; 
+        }
+        else {
+            std::cout << "only " << count << " particles were initialized" << std::endl; 
+            return false; 
+        }
+    } 
+    if (file >> x >> y >> z >> vx >> vy >> vz) {
+        std::cout << "there are more lines than particles!" << std::endl; 
+        return false; 
+    }
+    return true; 
+}
+
 /*double MPC::virtualTemperature() {
     double virtTemp { };
     for (auto& part : Fluid) {
@@ -195,7 +258,10 @@ void MPC::rotate(unsigned i) {
 void MPC::rotateSolute(unsigned i) {
     int Index{Solute[i].CellIndex}; 
     Solute[i].Velocity = CellData[Index].CellCOMVel + CellData[Index].CellRotation*(Solute[i].Velocity - CellData[Index].CellCOMVel); 
-    /*if (CellData[Index].CellThermo) Solute[i].Velocity = CellData[Index].CellScaling * Solute[i].Velocity + (1-CellData[Index].CellScaling)*CellData[Index].CellCOMVel;*/ 
+    if (CellData[Index].CellThermo) Solute[i].Velocity = CellData[Index].CellScaling * Solute[i].Velocity + (1-CellData[Index].CellScaling)*CellData[Index].CellCOMVel;
+    Solute[i].Position -= GridShift; 
+    wrap(Solute[i], BoxSize, Shear, delrx); 
+
 }
 
 void MPC::updateBoxShift(double dt) {
@@ -249,7 +315,12 @@ void MPC::printFluid(FILE* file, double time) {
     }
 }
 
-
+bool MPC::isInBox(const Particle& part) {
+    for (unsigned i = 0; i < 3; i++) {
+        if (part.Position(i)< 0 || part.Position(i) > BoxSize[i]) return false; 
+    }
+    return true; 
+}
 
 //obsolete functions: 
 /*void MPC::stream(MPCParticle& part, double dt) {

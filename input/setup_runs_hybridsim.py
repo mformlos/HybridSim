@@ -12,10 +12,14 @@ Box = namedtuple("Box", ["Lx", "Ly", "Lz"])
 
 ParameterSets = []
 
-ParameterSets.append(Parameter(Box(40, 40, 40), [0.0, 0.0001], 1.0, 5, 0.1, 0.01, 1000.0, 100.0,[i for i in range(1)]))
+ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.00001, 0.000023], 1.0, 10, 0.1, 0.01, 100000.0, 0.0,[i for i in range(50)]))
 #ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.0001, 0.0002], 0.0, 5, 0.01, 0.1, 1000.0, 100.0,[i for i in range(50)]))
 
 submit_files =open("runs_to_submit.dat", "w")
+if not os.path.exists("/scratch-new/formanek/HYBRIDSIM/"): 
+    os.makedirs("/scratch-new/formanek/HYBRIDSIM/")
+if not os.path.exists("/scratch-new/formanek/HYBRIDSIM/runs/"):
+    os.makedirs("/scratch-new/formanek/HYBRIDSIM/runs/")
 
 for paramSet in ParameterSets: 
     Lx = paramSet.Box.Lx
@@ -30,7 +34,7 @@ for paramSet in ParameterSets:
     for Shear in paramSet.Shear: 
         for SCNP in paramSet.SCNPNumber: 
             run_name = "SCNP-"+str(SCNP)+"-Shear-"+str(Shear)
-            directory = "/scratch/formanek/HYBRIDSIM/runs/"+run_name
+            directory = "/scratch-new/formanek/HYBRIDSIM/runs/"+run_name
             
             if os.path.exists(directory):
                 shutil.rmtree(directory)

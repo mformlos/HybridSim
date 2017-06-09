@@ -3,6 +3,7 @@
 #include <csignal>
 #include "MPC.h"
 #include "Velocity_Profile.h"
+#include "Velocity_Hist.h"
 #include "HelperFunctions.h"
 #include "System.h"
 
@@ -17,11 +18,11 @@ void signalHandler(int signum)
 int main(int argc, char* argv[]) {
     SignalCaught = 0;
     signal(SIGINT, signalHandler); 
-    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, TotalSteps {}, n {}; 
+    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, EquilSteps{}, SimSteps{}, TotalSteps {}, n {}, m {}; 
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
-    double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, Temperature{}, Time{};
+    double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, SimTime{}, Temperature{}, Time{};
     bool ParameterInitialized{}; 
-    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}; 
+    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}, FluidInput{}; 
     std::vector<unsigned> OutputSteps; 
     std::vector<unsigned>::iterator OutputStepsIt{};
     
@@ -61,7 +62,7 @@ int main(int argc, char* argv[]) {
     if (!ParameterInitialized) return EXIT_FAILURE;
     EquilTime = extractParameter<double>("EquilTime", inputfile, ParameterInitialized); 
     if (!ParameterInitialized) return EXIT_FAILURE;
-    TotalTime = extractParameter<double>("SimTime", inputfile, ParameterInitialized) + EquilTime;
+    SimTime = extractParameter<double>("SimTime", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
     OutputStepFile = extractParameter<std::string>("OutputStepFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
@@ -77,10 +78,13 @@ int main(int argc, char* argv[]) {
     if (!ParameterInitialized) return EXIT_FAILURE;
     FluidFile = extractParameter<std::string>("FluidFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
+    FluidInput = extractParameter<std::string>("FluidInput", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
     VelProfFile = extractParameter<std::string>("VelProfFile", inputfile, ParameterInitialized);
     
     
     inputfile.close(); 
+    TotalTime = EquilTime + SimTime;
     
     MPCInterval = (unsigned) (MPCStep/MDStep); 
     if (MPCInterval*MDStep != MPCStep) {
@@ -88,6 +92,8 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE; 
     }
     
+    EquilSteps = (unsigned) (EquilTime/MDStep); 
+    SimSteps = (unsigned) (SimTime/MDStep); 
     TotalSteps = (unsigned) (TotalTime/MDStep); 
     std::cout << "Total number of MD steps: " << TotalSteps << std::endl;  
      
@@ -108,6 +114,8 @@ int main(int argc, char* argv[]) {
     std::cout << "MoleculeFile is " << MoleculeFile << std::endl;
     std::cout << "LinkFile is " << LinkFile << std::endl;
     std::cout << "ConfigFile is " << ConfigFile << std::endl;
+    std::cout << "FluidFile is " << FluidFile << std::endl;
+    std::cout << "FluidInput is " << FluidInput << std::endl;
     std::cout << "VelProfFile is " << VelProfFile << std::endl;
     
     /////////////////////////////////////
@@ -132,8 +140,9 @@ int main(int argc, char* argv[]) {
  
     Sys.initializeVelocitiesRandom(Temperature); 
     
-    if (Sys.NumberOfMolecules() == 1) Sys.centerMolecule(0); 
-    else {
+    Vector3d newCOM(10., 18.,10.);
+    if (Sys.NumberOfMolecules() == 1)  Sys.setMoleculeCOM(0,newCOM); //Sys.centerMolecule(0);
+    else if (Sys.NumberOfMolecules() > 1){
         std::cout << "Code can not handle " << Sys.NumberOfMolecules() << " yet. Please use only 1 Molecule" << std::endl; 
         return EXIT_FAILURE;  
     }
@@ -154,7 +163,23 @@ int main(int argc, char* argv[]) {
     
     /////// MPC INITIALIZATION ///////
     MPC Mpc(Lx, Ly, Lz, MPCRho, Temperature, Shear); 
-    Mpc.initializeRandom(); 
+    if (FluidInput == "RANDOM") {
+        std::cout << "random initialization of fluid" << std::endl; 
+        Mpc.initializeRandom(); 
+    }
+    else if (FluidInput == "PROFILE") {
+        std::cout << "profile initialization of fluid" << std::endl; 
+        Mpc.initializeProfile(); 
+    }
+    else {
+        if (!Mpc.initializeFile(FluidInput)) {
+            std::cout << FluidInput << " does not exist or fluid was not initialized correctly" << std::endl; 
+            return EXIT_FAILURE; 
+        }
+        else {
+            std::cout << "fluid successfully initialized from file "<< FluidInput << std::endl; 
+        }
+    }    
     Mpc.initializeSoluteVector(Sys.NumberOfParticles()); 
     
     
@@ -162,6 +187,7 @@ int main(int argc, char* argv[]) {
     
     /////// OUTPUT INITIALIZATION ///////
     VelocityProfile VelProf{0.2};  
+    VelocityHist VelHist{0.1}; 
     
     if (!initializeStepVector(OutputSteps, OutputStepFile)) {
         std::cout << "OutputStepFile does not exist!" << std::endl; 
@@ -183,7 +209,7 @@ int main(int argc, char* argv[]) {
     
     /////// OPENMP BEGINNING & TESTS ///////
     
-    #pragma omp parallel private(tid, n)
+    #pragma omp parallel private(tid, n, m)
     {
         /////// OMP PARAMETERS ///////
         tid = omp_get_thread_num(); 
@@ -213,25 +239,30 @@ int main(int argc, char* argv[]) {
         
         ///////////////////////////////////
         ////// MAIN SIMULATION LOOP ///////
+        m = -EquilSteps; 
         for (n = 0; n <= TotalSteps; n++) {
             #pragma omp single 
             {
-                
                 Time += MDStep; 
                 Mpc.updateBoxShift(MDStep); 
                 Sys.delrx = Mpc.delrx; 
-                if (n%COMWrapInterval==0) Sys.wrapMoleculesCOM(); 
+                //if (n%COMWrapInterval==0) Sys.wrapMoleculesCOM(); 
                 try {
-                    if (n == *OutputStepsIt) Sys.propagate(MDStep, true);
+                    if (m == *OutputStepsIt) Sys.propagate(MDStep, true);
                     else Sys.propagate(MDStep);
                 }
                 catch (const LibraryException &ex) {
                     //std::cout << ex.what() << std::endl; 
-                    Sys.printPDB(PDBout, n);
+                    Sys.printPDB(PDBout, n, 1);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
                     fclose(PDBout);  
-                    fclose(FluidFilePointer);    
+                    fclose(FluidFilePointer); 
+                    if (!VelProfFile.empty()) {
+                        std::ofstream VelProfFileStream{}; 
+                        VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
+                        VelProf.print_result(VelProfFileStream); 
+                    }     
                     std::cout << "Terminating..." << std::endl;   
                     std::terminate(); 
                 }  
@@ -253,7 +284,7 @@ int main(int argc, char* argv[]) {
                 ////// STREAMING STEP ///////
                 #pragma omp for schedule(static)
                 for (unsigned part = 0; part < Mpc.NumberOfParticles; part++) {
-                    Mpc.streamPlusCellAssignment(Mpc.Fluid[part], 0.1); 
+                    Mpc.streamPlusCellAssignment(Mpc.Fluid[part], MPCStep); 
                 }
                 ////// SORT MPC PARTICLE VECTOR TO IMPROVE DATA LOCALITY ///// 
                 #pragma omp single 
@@ -302,24 +333,35 @@ int main(int argc, char* argv[]) {
             {
                 if (SignalCaught) {
                     std::cout << "writing job data..." << std::endl; 
-                    Sys.printPDB(PDBout, n);
+                    Sys.printPDB(PDBout, n, 1);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
                     fclose(PDBout);  
-                    fclose(FluidFilePointer);    
+                    fclose(FluidFilePointer);  
+                    if (!VelProfFile.empty()) {
+                        std::ofstream VelProfFileStream{}; 
+                        VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
+                        VelProf.print_result(VelProfFileStream); 
+                    }  
                     std::cout << "Terminating..." << std::endl;   
                     std::terminate(); 
                 }
-                if (n == *OutputStepsIt) {
+                if (m == *OutputStepsIt) {
                     Sys.printStatistics(StatisticsStream, Time); 
-                    Sys.printPDB(PDBout, n); 
+                    Sys.printPDB(PDBout, n, 1); 
                     if (!VelProfFile.empty()) Mpc(VelProf); 
-                    std::cout << Time << std::endl; 
+                    Mpc(VelHist);  
+                    std::cout << Time << " " << Sys.delrx <<  std::endl; 
                     OutputStepsIt++; 
                     
                 }
+                //if (m%1000==0) {
+                    //if (!VelProfFile.empty()) Mpc(VelProf);     
+                //}
             }
+            m++; 
         }
+        
     
     
     } 
@@ -338,6 +380,11 @@ int main(int argc, char* argv[]) {
         VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
         VelProf.print_result(VelProfFileStream); 
     }
+    
+    std::ofstream VelHistFileStream{}; 
+    VelHistFileStream.open("velhist", ios::out | ios::trunc); 
+    VelHist.print_result(VelHistFileStream); 
+    
     fclose(PDBout);   
 
     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 

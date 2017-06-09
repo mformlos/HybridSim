@@ -18,3 +18,6 @@ target_link_libraries(test Random System Molecule Particle MPC)
 
 add_executable(thread_random thread_random.cpp)
 target_link_libraries(thread_random Random)
+
+add_executable(copy_test copy_test.cpp) 
+target_link_libraries(copy_test Particle)

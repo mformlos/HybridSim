@@ -22,3 +22,4 @@ StatisticsFile = stats
 ConfigOutFile = configout.pdb
 VelProfFile = velprof
 FluidFile = fluid
+FluidInput = RANDOM

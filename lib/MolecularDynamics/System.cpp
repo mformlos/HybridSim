@@ -80,13 +80,21 @@ void System::updateVerletLists() {
                 Vector3d imPos{image(mono, BoxSize, delrx)}; 
                 CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
             }
+            /*if (mono.Position(1) > BoxSize[1]-CellSideLength[1] && delrx > CellSideLength[1]) {
+                            std::cout << delrx << " " << CellNumber[0] << " " << CellNumber[1] << " " << CellNumber[2] << endl;;  
+            }*/
             for (int i = CellNumber[0]-1; i < CellNumber[0]+2; i++) {
-                l = i - floor((double)i/Cells[0])*Cells[0]; 
+                
                 for (int j = CellNumber[1]-1; j < CellNumber[1]+2; j++) {
-                    m = j - floor((double)j/Cells[1])*Cells[1];
+                    
                     for (int k = CellNumber[2]-1; k < CellNumber[2]+2; k++) {
+                        l = i - floor((double)j/Cells[1])*(int)(delrx/CellSideLength[0]); 
+                        l -= floor((double)l/Cells[0])*Cells[0]; 
+                        m = j - floor((double)j/Cells[1])*Cells[1];
                         n = k - floor((double)k/Cells[2])*Cells[2]; 
-                        //std::cout << l << " " << m << " " << n << std::endl; 
+                        /*if (mono.Position(1) > BoxSize[1]-CellSideLength[1] && delrx > CellSideLength[1]) {
+                            std::cout << l << " " << m << " " << n << endl;;  
+                        }*/
                         for (auto& other : CellList[l][m][n]) {
                             if (other == &mono) continue; 
                             Vector3d relPos {relative(mono, *other, BoxSize, delrx)}; 
@@ -135,7 +143,7 @@ void System::calculateForces(bool calcEpot) {
                 }
                 force_abs = RLJ_Force(radius2); 
                 if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
-                    throw(RLJException(mono.Identifier, other->Identifier, force_abs)); 
+                    throw(RLJException(mono.Identifier, mono.Position, mono.Velocity, other -> Identifier, other -> Position, other -> Velocity, force_abs)); 
                 }
                 force = relPos*force_abs; 
                 mono.Force -= force;  
@@ -175,6 +183,10 @@ bool System::addMolecules(std::string filename, double mass) {
     if (file.is_open()) {
         std::cout << "file " << filename << " successfully opened" << std::endl; 
         file >> numberOfLines; 
+        if (numberOfLines == 0) {
+            std::cout << "no molecules in the system" << std::endl; 
+            return true; 
+        }
         while (file >> mol >> bond1 >> bond2) {
             if (mol != current_mol) {
                 mono_count += monos;
@@ -220,7 +232,7 @@ bool System::initializePositions(std::string filename) {
     std::ifstream file {filename};
     if (!file.is_open()) return false; 
     double x, y, z;  
-    unsigned count {}; 
+    unsigned count {0}; 
     if (file.is_open()) {  
         for (auto& mol : Molecules) {
             for (auto& mono : mol.Monomers) {
@@ -276,14 +288,14 @@ void System::setMoleculeCOM(unsigned molIndex, Vector3d newCOM) {
         std::cout << "Molecule number " << molIndex << " does not exist." << std::endl; 
         return; 
     }
-    Vector3d currentCOM {Vector3d::Zero()}; 
-    for (auto& mono : Molecules[molIndex].Monomers) {
-        currentCOM += mono.Position; 
-    }
-    currentCOM /= Molecules[molIndex].NumberOfMonomers; 
+    Vector3d currentCOM {Molecules[molIndex].centerOfMassPosition()}; 
     newCOM -= currentCOM; 
     for (auto& mono : Molecules[molIndex].Monomers) {
         mono.Position += newCOM; 
+        if (mono.Position(1) >= BoxSize[1]) { 
+            std::cout << mono.Position(1) << " COM to big"; 
+            exit(0); 
+        }
     }
 }
 

@@ -1,13 +1,17 @@
 #include "System.h"
+#include "HelperFunctions.h"
 
 int main() {
     System sys_test(40,40,40, 0.0); 
+    std::vector<unsigned> OutputSteps; 
+    std::vector<unsigned>::iterator OutputStepsIt{};
     
-    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-1-chain", 5.0); 
-    sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-1-bonds"); 
-    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-1-config"); 
+    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 5.0); 
+    sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
+    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
-    
+    initializeStepVector(OutputSteps, "/home/formanek/HYBRIDSIM/input/teststeps"); 
+    OutputStepsIt = OutputSteps.begin();    
     unsigned monocount {0}, bondcount {0};  
     for (auto& mol : sys_test.Molecules) {
         //std::cout << "new molecule" << std::endl; 
@@ -77,15 +81,17 @@ int main() {
     std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
     sys_test.updateVerletLists(); 
     sys_test.calculateForces(); 
-    ofstream gyr{"./results/NH-SCNP-1-stats.dat"}; 
+    ofstream gyr{"./results/NH-SCNP-0-stats.dat"}; 
 
     
-    for (int i = 0; i < 1000000; i++) {
-        if (!(i%100)) {
-            sys_test.propagate(0.01, true); 
-            sys_test.printStatistics(gyr, i*0.01);
-        } 
-        else sys_test.propagate(0.01); 
+    for (unsigned i = 0; i < 10000000; i++) {
+        if (i == *OutputStepsIt) {
+            sys_test.propagate(0.005, true); 
+            sys_test.printStatistics(gyr, i*0.005);
+            std::cout << 0.005*i << std::endl; 
+            OutputStepsIt++;
+        }
+        else sys_test.propagate(0.005); 
     }
     
     fclose(pdb); 

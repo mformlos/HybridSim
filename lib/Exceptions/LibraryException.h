@@ -38,9 +38,9 @@ class RLJException : public ForceException
         std::string ErrorMessage; 
         ~RLJException() throw() {};  
         const char* what() const noexcept {return ErrorMessage.c_str(); }
-        RLJException(int First, int Second, double aForce) 
+        RLJException(int FirstId, Vector3d FirstPos, Vector3d FirstVel, int SecondId, Vector3d SecondPos, Vector3d SecondVel, double aForce) 
         {
-            ErrorMessage = "An overflow error occurred in a Lennard-Jones force calculation between the following particles: \n Particle 1: "+std::to_string(First)+" \n Particle 2: "+std::to_string(Second)+" \n Force: "+std::to_string(aForce)+"\n" ; 
+            ErrorMessage = "An overflow error occurred in a Lennard-Jones force calculation between the following particles: \n Particle 1: "+std::to_string(FirstId)+" Position: "+std::to_string(FirstPos(0))+" "+std::to_string(FirstPos(1))+" "+std::to_string(FirstPos(2))+" Velocity: "+std::to_string(FirstVel(0))+" "+std::to_string(FirstVel(1))+ " "+std::to_string(FirstVel(2))+" \n Particle 2: "+std::to_string(SecondId)+" "+std::to_string(SecondPos(0))+" "+std::to_string(SecondPos(1))+" "+std::to_string(SecondPos(2))+" Velocity: "+std::to_string(SecondVel(0))+" "+std::to_string(SecondVel(1))+ " "+std::to_string(SecondVel(2))+" \n Force: "+std::to_string(aForce)+"\n" ; 
         }
 }; 
 

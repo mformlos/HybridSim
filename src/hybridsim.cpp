@@ -16,11 +16,13 @@ int main() {
     System sys(Lx,Ly,Lz, Shear); 
     MPC mpc(Lx, Ly, Lz, 5, 1.0, Shear);
     VelocityProfile vel_prof{0.2}; 
-    
-    sys.addMolecules("/home/formanek/HYBRIDSIM/input/SCNP-1-chain", 5.0); 
-    sys.addLinks("/home/formanek/HYBRIDSIM/input/SCNP-1-bonds"); 
-    sys.initializePositions("/home/formanek/HYBRIDSIM/input/SCNP-1-config"); 
+
+    sys.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 5.0); 
+    sys.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
+    sys.initializePositions("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-config"); 
     sys.initializeVelocitiesRandom(1.0); 
+    
+
     Vector3d boxCenter {Lx*0.5, Ly*0.5, Lz*0.5}; 
     sys.setMoleculeCOM(0, boxCenter); 
     
@@ -36,7 +38,7 @@ int main() {
     timeval start, end;
     gettimeofday(&start, NULL);
     
-    fstream gyrfile {}; 
+    ofstream gyrfile {}; 
     gyrfile.open("rgyrmpc2.dat", ios::out | ios::trunc);
     FILE* pdb {}; 
     pdb = fopen("pdb_mpc.pdb", "w");
@@ -74,7 +76,7 @@ int main() {
                 mpc.updateBoxShift(StepSize); 
                 sys.delrx=mpc.delrx; 
                 if (n%COMwrapInterval == 0) sys.wrapMoleculesCOM();
-                if (n%10 ==0) sys.propagate(StepSize, true); 
+                if (n%1000 ==0) sys.propagate(StepSize, true); 
                 else sys.propagate(StepSize); 
             }
             
@@ -132,16 +134,13 @@ int main() {
             }
             #pragma omp single 
             {    
-                if (n%100 ==0) {
+                if (n%1000 ==0) {
+                    sys.printStatistics(gyrfile, n*0.01);
                     double temp = mpc.virtualTemperature();
-                    double rgyr = sys.Molecules.front().radiusOfGyration(); 
-                    Vector3d COM = sys.Molecules.front().centerOfMassPosition();
-                    Vector3d COMVel {sys.Molecules.front().centerOfMassVelocity()};
-                    Vector3d rot = sys.Molecules.front().RotationFrequency();  
+                    
                     mpc(vel_prof); 
                     sys.printPDB(pdb, n);
-                    std::cout << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
-                    gyrfile << n << " " << temp << " " << rgyr << " " << sys.Molecules.front().Epot << " " << rot.transpose() << " COM: " << COM.transpose() << " COM Vel: " << COMVel.transpose() << std::endl;
+                    std::cout << n << " " << temp << std::endl;
                 }
             }
         }

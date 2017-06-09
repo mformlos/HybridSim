@@ -2,6 +2,7 @@
 #define LIB_MPC_H_
 
 #include <stdlib.h>
+#include <fstream>
 #include "Particle.h"
 #include "Molecule.h"
 #include "Rand.h"
@@ -40,7 +41,8 @@ public:
     
     //Initialization: 
     void initializeRandom(); 
-    
+    void initializeProfile();
+    bool initializeFile(std::string);
     
     //MPC routine 
     void updateBoxShift(double dt);
@@ -72,6 +74,7 @@ public:
     
     //Boundary conditions: 
     //inline void wrap(MPCParticle&);
+    inline bool isInBox(const Particle&); 
     
     
     //Properties: 
