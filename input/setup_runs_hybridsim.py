@@ -12,8 +12,9 @@ Box = namedtuple("Box", ["Lx", "Ly", "Lz"])
 
 ParameterSets = []
 
-ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.00001, 0.000023], 1.0, 10, 0.1, 0.01, 100000.0, 0.0,[i for i in range(50)]))
-#ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.0001, 0.0002], 0.0, 5, 0.01, 0.1, 1000.0, 100.0,[i for i in range(50)]))
+ParameterSets.append(Parameter(Box(50, 50, 50), [0.0002, 0.0005, 0.001, 0.002, 0.005], 1.0, 10, 0.1, 0.01, 8010000.0, 0.0,[i for i in range(50)]))
+#ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.00001, 0.00005, 0.0001], 1.0, 10, 0.1, 0.01, 8010000.0, 0.0,[i for i in range(50)]))
+#ParameterSets.append(Parameter(Box(50, 50, 50), [0.0], 1.0, 5, 0.1, 0.01, 1000.0, 0.0,[i for i in range(5)]))
 
 submit_files =open("runs_to_submit.dat", "w")
 if not os.path.exists("/scratch-new/formanek/HYBRIDSIM/"): 
@@ -39,6 +40,7 @@ for paramSet in ParameterSets:
             if os.path.exists(directory):
                 shutil.rmtree(directory)
             os.makedirs(directory) 
+            os.makedirs(directory+"/configs")
             shutil.copyfile("SCNPs/SCNP-"+str(SCNP)+"-config", directory+"/config")
             shutil.copyfile("SCNPs/SCNP-"+str(SCNP)+"-bonds", directory+"/bonds")    
             shutil.copyfile("SCNPs/SCNP-"+str(SCNP)+"-chain", directory+"/chain")

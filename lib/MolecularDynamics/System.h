@@ -32,6 +32,7 @@ public:
     void checkVerletLists(); 
     
     void calculateForces(bool calcEpot=false); 
+    void calculateForcesBrute(bool calcEpot=false); 
     
     void wrapMoleculesCOM(); 
     

@@ -54,7 +54,7 @@ int main() {
     test_part.Position(1) = 13.0; 
     test_part.Position(2) = 37.0; 
     FILE* pdb {}; 
-    pdb = fopen("pdb_equil.pdb", "w");
+    pdb = fopen("pdb_equil_brute.pdb", "w");
     Vector3d vec {-COMPos.front()}; 
     vec[0] += sys_test.BoxSize[0]*0.5; 
     vec[1] += sys_test.BoxSize[1]*0.5; 
@@ -79,19 +79,20 @@ int main() {
     std::cout << "new center of mass: " << sys_test.Molecules.front().centerOfMassPosition().transpose() << std::endl; 
     
     std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
-    sys_test.updateVerletLists(); 
-    sys_test.calculateForces(); 
+    //sys_test.updateVerletLists(); 
+    sys_test.calculateForcesBrute(true); 
+    std::cout << sys_test.PotentialEnergy() << std::endl; 
     ofstream gyr{"./results/NH-SCNP-0-stats.dat"}; 
 
     
     for (unsigned i = 0; i < 10000000; i++) {
         if (i == *OutputStepsIt) {
-            sys_test.propagate(0.005, true); 
-            sys_test.printStatistics(gyr, i*0.005);
-            std::cout << 0.005*i << std::endl; 
+            sys_test.propagate(0.001, true); 
+            sys_test.printStatistics(gyr, i*0.001);
+            std::cout << 0.001*i << std::endl; 
             OutputStepsIt++;
         }
-        else sys_test.propagate(0.005); 
+        else sys_test.propagate(0.001); 
     }
     
     fclose(pdb); 

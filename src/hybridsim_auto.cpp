@@ -140,8 +140,8 @@ int main(int argc, char* argv[]) {
  
     Sys.initializeVelocitiesRandom(Temperature); 
     
-    Vector3d newCOM(10., 18.,10.);
-    if (Sys.NumberOfMolecules() == 1)  Sys.setMoleculeCOM(0,newCOM); //Sys.centerMolecule(0);
+    //Vector3d newCOM(10., 18.,10.);
+    if (Sys.NumberOfMolecules() == 1)  Sys.centerMolecule(0); //Sys.setMoleculeCOM(0,newCOM); 
     else if (Sys.NumberOfMolecules() > 1){
         std::cout << "Code can not handle " << Sys.NumberOfMolecules() << " yet. Please use only 1 Molecule" << std::endl; 
         return EXIT_FAILURE;  
@@ -149,8 +149,9 @@ int main(int argc, char* argv[]) {
     
     
     try {
-        Sys.updateVerletLists(); 
-        Sys.calculateForces(); 
+        //Sys.updateVerletLists(); 
+        //Sys.calculateForces();
+        Sys.calculateForcesBrute(); 
     }
     catch (const LibraryException &ex) {
         std::cout << ex.what() << std::endl; 
@@ -187,7 +188,7 @@ int main(int argc, char* argv[]) {
     
     /////// OUTPUT INITIALIZATION ///////
     VelocityProfile VelProf{0.2};  
-    VelocityHist VelHist{0.1}; 
+    //VelocityHist VelHist{0.1}; 
     
     if (!initializeStepVector(OutputSteps, OutputStepFile)) {
         std::cout << "OutputStepFile does not exist!" << std::endl; 
@@ -198,12 +199,14 @@ int main(int argc, char* argv[]) {
     
     std::ofstream StatisticsStream(StatisticsFile, ios::out | ios::trunc); 
     FILE* PDBout{}; 
-    PDBout = fopen(ConfigOutFile.c_str(), "w"); 
+    //PDBout = fopen(ConfigOutFile.c_str(), "w"); 
     
     FILE* FluidFilePointer {}; 
     
     timeval start {}, end {};
     gettimeofday(&start, NULL); 
+    
+  
     
     ////////////////////////////////////////
     
@@ -243,16 +246,18 @@ int main(int argc, char* argv[]) {
         for (n = 0; n <= TotalSteps; n++) {
             #pragma omp single 
             {
+                //std::cout << n << std::endl; 
                 Time += MDStep; 
                 Mpc.updateBoxShift(MDStep); 
                 Sys.delrx = Mpc.delrx; 
-                //if (n%COMWrapInterval==0) Sys.wrapMoleculesCOM(); 
+                if (n%COMWrapInterval==0) Sys.wrapMoleculesCOM(); 
                 try {
                     if (m == *OutputStepsIt) Sys.propagate(MDStep, true);
                     else Sys.propagate(MDStep);
                 }
                 catch (const LibraryException &ex) {
                     //std::cout << ex.what() << std::endl; 
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
                     Sys.printPDB(PDBout, n, 1);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
@@ -266,6 +271,7 @@ int main(int argc, char* argv[]) {
                     std::cout << "Terminating..." << std::endl;   
                     std::terminate(); 
                 }  
+               
                 
             }
             
@@ -333,7 +339,9 @@ int main(int argc, char* argv[]) {
             {
                 if (SignalCaught) {
                     std::cout << "writing job data..." << std::endl; 
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
                     Sys.printPDB(PDBout, n, 1);
+                    fclose(PDBout);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
                     fclose(PDBout);  
@@ -348,9 +356,11 @@ int main(int argc, char* argv[]) {
                 }
                 if (m == *OutputStepsIt) {
                     Sys.printStatistics(StatisticsStream, Time); 
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
                     Sys.printPDB(PDBout, n, 1); 
-                    if (!VelProfFile.empty()) Mpc(VelProf); 
-                    Mpc(VelHist);  
+                    fclose(PDBout);
+                    if (m > 10000 && !VelProfFile.empty()) Mpc(VelProf); 
+                    //Mpc(VelHist);  
                     std::cout << Time << " " << Sys.delrx <<  std::endl; 
                     OutputStepsIt++; 
                     
@@ -381,11 +391,11 @@ int main(int argc, char* argv[]) {
         VelProf.print_result(VelProfFileStream); 
     }
     
-    std::ofstream VelHistFileStream{}; 
-    VelHistFileStream.open("velhist", ios::out | ios::trunc); 
-    VelHist.print_result(VelHistFileStream); 
+    //std::ofstream VelHistFileStream{}; 
+    //VelHistFileStream.open("velhist", ios::out | ios::trunc); 
+    //VelHist.print_result(VelHistFileStream); 
     
-    fclose(PDBout);   
+    //fclose(PDBout);   
 
     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
     Mpc.printFluid(FluidFilePointer, Time); 

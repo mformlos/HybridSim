@@ -6,7 +6,7 @@ make
 
 #copy it to scratch
 cd ..
-cp -f bin/hybridsim_auto /scratch-new/formanek/HYBRIDSIM
+#cp -f bin/hybridsim_auto /scratch-new/formanek/HYBRIDSIM
 
 cd input 
 
@@ -15,7 +15,7 @@ CPUsPerTask=1
 CPUsPerNode=64
 TasksPerNode=$[$CPUsPerNode/$CPUsPerTask]
 echo "will submit $TasksPerNode per node"  
-nodes=("2" "3" "4" "5" "6" "7")
+nodes=("6" "7" "8" "9")
 
 mkdir -p slurm
 currentNodeIndex=0

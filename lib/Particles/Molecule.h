@@ -31,6 +31,7 @@ public:
     std::tuple<double, Matrix3d> GyrationTensor(); 
     Vector3d RotationFrequency(); 
     
+    void printForces(FILE* f, int step); 
     
 }; 
 

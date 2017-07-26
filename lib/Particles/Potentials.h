@@ -4,19 +4,19 @@
 #include <cmath>
 
 inline double FENE_Potential(double r2) {
-    double potential {}; 
+    double potential {0.0}; 
     potential = -15.0*2.25*log(1.0 - r2/2.25);
     return potential; 
 }
 
 inline double FENE_Force(double r2) {
-    double force {}; 
+    double force {0.0}; 
     force = -30.0/(1.0 - (r2/2.25));
     return force; 
 }
 
 inline double RLJ_Potential(double r2) {
-    double potential {}; 
+    double potential {0.0}; 
     if (r2 < 1.25992105) {
 		double rm6 { 1.0 / r2 };
 		rm6 *= rm6*rm6;
@@ -26,7 +26,7 @@ inline double RLJ_Potential(double r2) {
 } 
 
 inline double RLJ_Force(double r2) {
-    double force{};
+    double force{0.0};
 	if (r2 <1.25992105) {
 		double rm2 { 1.0 / r2 };
 		double rm6 { rm2*rm2*rm2 };

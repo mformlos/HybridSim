@@ -9,9 +9,9 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma) :
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
-        Cells[0] = unsigned(BoxSize[0]/VerletRadius); 
-        Cells[1] = unsigned(BoxSize[1]/VerletRadius); 
-        Cells[2] = unsigned(BoxSize[2]/VerletRadius);     
+        Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
+        Cells[1] = unsigned(BoxSize[1]/(sqrt(2)*VerletRadius)); 
+        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));     
         CellSideLength[0] = BoxSize[0]/(double)Cells[0]; 
         CellSideLength[1] = BoxSize[1]/(double)Cells[1];
         CellSideLength[2] = BoxSize[2]/(double)Cells[2];
@@ -28,9 +28,9 @@ System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, u
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
-        Cells[0] = unsigned(BoxSize[0]/VerletRadius); 
-        Cells[1] = unsigned(BoxSize[1]/VerletRadius); 
-        Cells[2] = unsigned(BoxSize[2]/VerletRadius);     
+        Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
+        Cells[1] = unsigned(BoxSize[1]/(sqrt(2)*VerletRadius)); 
+        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));      
         CellSideLength[0] = BoxSize[0]/(double)Cells[0]; 
         CellSideLength[1] = BoxSize[1]/(double)Cells[1];
         CellSideLength[2] = BoxSize[2]/(double)Cells[2];
@@ -76,18 +76,18 @@ void System::updateVerletLists() {
     int l, m, n; 
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
-            for (unsigned i = 0; i < 3; i++) {
-                Vector3d imPos{image(mono, BoxSize, delrx)}; 
+            Vector3d imPos{image(mono, BoxSize, delrx)}; 
+            for (unsigned i = 0; i < 3; i++) { 
                 CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
             }
             /*if (mono.Position(1) > BoxSize[1]-CellSideLength[1] && delrx > CellSideLength[1]) {
                             std::cout << delrx << " " << CellNumber[0] << " " << CellNumber[1] << " " << CellNumber[2] << endl;;  
             }*/
-            for (int i = CellNumber[0]-1; i < CellNumber[0]+2; i++) {
+            for (int i = CellNumber[0]-2; i < CellNumber[0]+3; i++) {
                 
-                for (int j = CellNumber[1]-1; j < CellNumber[1]+2; j++) {
+                for (int j = CellNumber[1]-2; j < CellNumber[1]+3; j++) {
                     
-                    for (int k = CellNumber[2]-1; k < CellNumber[2]+2; k++) {
+                    for (int k = CellNumber[2]-2; k < CellNumber[2]+3; k++) {
                         l = i - floor((double)j/Cells[1])*(int)(delrx/CellSideLength[0]); 
                         l -= floor((double)l/Cells[0])*Cells[0]; 
                         m = j - floor((double)j/Cells[1])*Cells[1];
@@ -125,6 +125,7 @@ void System::checkVerletLists() {
 }
 
 void System::calculateForces(bool calcEpot) {
+    //unsigned count_bonds {0}; 
     double force_abs {}; 
     Vector3d force {}; 
     for (auto& mol : Molecules) {
@@ -132,7 +133,6 @@ void System::calculateForces(bool calcEpot) {
         if (calcEpot) mol.Epot = 0.0;    
     }
     for (auto& mol : Molecules) {
-        //unsigned mono_count {}; 
         for (auto& mono : mol.Monomers) {
             for (auto& other : mono.VerletList) {
                 Vector3d relPos {relative(mono, *other, BoxSize, delrx)};  
@@ -150,6 +150,7 @@ void System::calculateForces(bool calcEpot) {
             }
             
             for (auto& bonded : mono.Bonds) {
+                //count_bonds++; 
                 Vector3d relPos {relative(mono, *bonded, BoxSize, delrx)}; 
                 double radius2 {relPos.squaredNorm()}; 
                 if (calcEpot) {
@@ -162,15 +163,63 @@ void System::calculateForces(bool calcEpot) {
                 if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
                     throw(FENEException(mono.Identifier, bonded->Identifier, force_abs)); 
                 }
-                //std::cout << mono.Identifier << " " << bonded->Identifier << " " << radius2 << " " << force_abs << std::endl; 
                 force = relPos*force_abs; 
                 mono.Force -= force; 
                 bonded -> Force += force; 
             } 
-            //mono_count++;  
         }
     }
 }
+
+void System::calculateForcesBrute(bool calcEpot) {
+    double force_abs {}; 
+    Vector3d force {}; 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) mono.Force = Vector3d::Zero(); 
+        if (calcEpot) mol.Epot = 0.0;    
+    }
+    for (auto& mol : Molecules) {
+        for (unsigned i = 0; i < mol.NumberOfMonomers; i++) {
+            for (unsigned j = i+1; j < mol.NumberOfMonomers; j++) {            
+                Vector3d relPos {relative(mol.Monomers[i], mol.Monomers[j], BoxSize, delrx)};
+                //Vector3d relPos {mol.Monomers[j].Position - mol.Monomers[i].Position}; 
+                double radius2 {relPos.squaredNorm()}; 
+                if (calcEpot) {
+                    mol.Epot += RLJ_Potential(radius2); 
+                }
+                force_abs = RLJ_Force(radius2); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    MDParticle* mono {&mol.Monomers[i]}; 
+                    MDParticle* other {&mol.Monomers[j]};  
+                    throw(RLJException(mono -> Identifier, mono -> Position, mono -> Velocity, other -> Identifier, other -> Position, other -> Velocity, force_abs)); 
+                }
+                //std::cout << i << " " << j << " " << force_abs << std::endl;
+                force = relPos*force_abs; 
+                mol.Monomers[i].Force -= force; 
+                mol.Monomers[j].Force += force;     
+            }
+            for (auto& bonded : mol.Monomers[i].Bonds) {
+                Vector3d relPos {relative(mol.Monomers[i], *bonded, BoxSize, delrx)}; 
+                //Vector3d relPos {bonded->Position - mol.Monomers[i].Position};
+                double radius2 {relPos.squaredNorm()}; 
+                if (calcEpot) {
+                    mol.Epot += FENE_Potential(radius2); 
+                }
+                force_abs = FENE_Force(radius2); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    throw(FENEException(mol.Monomers[i].Identifier, bonded->Identifier, force_abs)); 
+                }
+                force = relPos*force_abs; 
+                mol.Monomers[i].Force -= force; 
+                bonded -> Force += force; 
+            }        
+        }
+    }
+}
+            
+
+
+
 
 bool System::addMolecules(std::string filename, double mass) {
     std::ifstream file(filename, ios::in);
@@ -317,8 +366,9 @@ void System::propagate(double dt, bool calcEpot) {
             //TODO: boundary 
         }
     }
-    checkVerletLists(); 
-    calculateForces(calcEpot); 
+    //checkVerletLists(); 
+    //calculateForces(calcEpot); 
+    calculateForcesBrute(calcEpot); 
     
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {

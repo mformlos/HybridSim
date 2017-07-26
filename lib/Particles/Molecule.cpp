@@ -139,5 +139,13 @@ Vector3d Molecule::RotationFrequency() {
     omega = inertiaTensor.ldlt().solve(angularMomentum); 
     return omega; 
 }
+
+void Molecule::printForces(FILE* f, int step) {
+    fprintf(f, "MODEL     %d \n", step);
+    for (auto& mono : Monomers) {
+        fprintf(f, "%12.4f %12.4f %12.4f \n", mono.Force(0), mono.Force(1), mono.Force(2));
+    }
+    fprintf(f, "\n"); 
+}
  
 
