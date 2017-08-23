@@ -35,4 +35,10 @@ inline double RLJ_Force(double r2) {
 	return force;
 }
 
+inline double Harmonic_Potential(double r2, double k) {
+    double potential {k*r2/2.0}; 
+    return potential; 
+}
+
+
 #endif

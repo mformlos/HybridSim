@@ -16,6 +16,8 @@ public:
     double VerletRadiusSq; 
     double delrx; 
     double Shear;
+    double SMDconstant; 
+    bool SMD; 
     
     std::array<unsigned,3> BoxSize; 
     std::array<unsigned,3> Cells; 
@@ -25,8 +27,11 @@ public:
     
     std::vector<Molecule> Molecules; 
     
-    System(unsigned, unsigned, unsigned, double); //initialize only boxsize and Shear; 
-    System(double, double, unsigned, unsigned, unsigned, double); //initialize with cutoffs
+    std::vector<MDParticle*> SMDParticles; 
+    Particle SMDdrivingParticle; 
+    
+    System(unsigned, unsigned, unsigned, double, bool SMDon = false, double k = 0.0); //initialize only boxsize and Shear; 
+    System(double, double, unsigned, unsigned, unsigned, double, bool SMDon = false, double k = 0.0); //initialize with cutoffs
     
     void updateVerletLists(); 
     void checkVerletLists(); 
@@ -43,8 +48,11 @@ public:
     void initializeVelocitiesRandom(double); 
     void setMoleculeCOM(unsigned, Vector3d); 
     void centerMolecule(unsigned); 
+    void setSMDParticles(std::vector<unsigned>); 
+    void setupSMD(Vector3d, Vector3d); 
     
     void propagate(double dt, bool calcEpot=false); 
+    void propagateLangevin(double dt, double Temperature, double gamma=0.05, bool calcEpot=false); 
     
     //getter:
     

@@ -13,6 +13,9 @@ target_link_libraries(hybridsim Random System Molecule Particle MPC)
 add_executable(moltest mol_test.cpp)
 target_link_libraries(moltest Random Molecule Particle System)
 
+add_executable(LangevinTest Langevin_test.cpp)
+target_link_libraries(LangevinTest Random Molecule Particle System)
+
 add_executable(test test.cpp) 
 target_link_libraries(test Random System Molecule Particle MPC)
 

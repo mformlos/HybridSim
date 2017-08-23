@@ -1,11 +1,13 @@
 #include "System.h"
 
-System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma) : 
+System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, bool SMDon, double k) : 
     Cutoff {1.5}, 
     VerletRadius {2.0}, 
     VerletRadiusSq {4.0},
     delrx {0.0}, 
-    Shear {gamma} {
+    Shear {gamma},
+    SMDconstant {k}, 
+    SMD {SMDon} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -19,12 +21,14 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma) :
     }
     
 
-System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma) : 
+System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma, bool SMDon, double k) : 
     Cutoff {aCutoff}, 
     VerletRadius {aVerletRadius}, 
     VerletRadiusSq {aVerletRadius*aVerletRadius},
     delrx {0.0}, 
-    Shear {gamma} {
+    Shear {gamma},
+    SMDconstant {k}, 
+    SMD {SMDon} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -169,6 +173,18 @@ void System::calculateForces(bool calcEpot) {
             } 
         }
     }
+    
+    if (SMD) {
+        for (auto& part : SMDParticles) {
+            Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
+            if (calcEpot) {
+                double radius2 {relPos.squaredNorm()}; 
+                Molecules[0].Epot += SMDconstant*radius2*0.5; 
+            }    
+            part -> Force -= SMDconstant*relPos;  
+        }   
+    }
+    
 }
 
 void System::calculateForcesBrute(bool calcEpot) {
@@ -215,6 +231,17 @@ void System::calculateForcesBrute(bool calcEpot) {
             }        
         }
     }
+    if (SMD) {
+        for (auto& part : SMDParticles) {
+            Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
+            if (calcEpot) {
+                double radius2 {relPos.squaredNorm()}; 
+                Molecules[0].Epot += SMDconstant*radius2*0.5; 
+            }    
+            part -> Force -= SMDconstant*relPos;  
+        }   
+    }
+    
 }
             
 
@@ -358,6 +385,22 @@ void System::wrapMoleculesCOM() {
         wrapCOM(mol, BoxSize, Shear, delrx); 
     }
 }
+
+void System::setSMDParticles(std::vector<unsigned> PartNumbers) {
+    for (auto& number : PartNumbers) {
+        if (number > Molecules[0].NumberOfMonomers) {
+            std::cout << "SMD only works with 1 Molecule so far" << std::endl; 
+            return;
+        }
+        SMDParticles.push_back(&Molecules[0].Monomers[number]); 
+    }
+}
+
+void System::setupSMD(Vector3d pos, Vector3d vel) {
+    SMDdrivingParticle.Position = pos; 
+    SMDdrivingParticle.Velocity = vel; 
+}
+
 void System::propagate(double dt, bool calcEpot) {
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
@@ -368,6 +411,9 @@ void System::propagate(double dt, bool calcEpot) {
     }
     //checkVerletLists(); 
     //calculateForces(calcEpot); 
+    if (SMD) {
+        SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
+    }
     calculateForcesBrute(calcEpot); 
     
     for (auto& mol : Molecules) {
@@ -377,6 +423,72 @@ void System::propagate(double dt, bool calcEpot) {
     }
 }
 
+void System::propagateLangevin(double dt, double Temperature, double gamma, bool calcEpot) {
+    double velcexp {exp(-gamma*dt)}; 
+    double velcsqrt {sqrt(2.*gamma*Temperature)}; 
+    double poscexp {(1.-velcexp)/(gamma)}; 
+    double poscsqrt {velcsqrt/gamma}; 
+    double tau1 {(1.-exp(-gamma*dt))/gamma}; 
+    double tau2 {(1.-exp(-2.*gamma*dt))/(2.*gamma)}; 
+    double zc11 {sqrt(tau2)};
+    double zc21 {(tau1-tau2)/zc11}; 
+    double zc22 {sqrt(dt - tau1*tau1/tau2)}; 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            Vector3d Z1; 
+            Vector3d Z2; 
+            Vector3d O1 {Rand::real_normal(), Rand::real_normal(), Rand::real_normal()}; 
+            Vector3d O2 {Rand::real_normal(), Rand::real_normal(), Rand::real_normal()}; 
+            Z1 = zc11*O1;
+            Z2 = zc21*O1 + zc22*O2; 
+            Vector3d veltilde {mono.Velocity + mono.Force*dt/(2.*mono.Mass)}; 
+            mono.Velocity = velcexp*veltilde + velcsqrt*Z1/sqrt(mono.Mass); 
+            mono.Position += poscexp*veltilde + poscsqrt*Z2/sqrt(mono.Mass); 
+        }
+    }
+    if (SMD) {
+        SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
+    }
+    calculateForcesBrute(calcEpot); 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            mono.Velocity += (mono.Force/mono.Mass)*dt*0.5;  
+        }
+    }
+}
+
+/*void System::propagateLangevin(double dt, double Temperature, double gamma, bool calcEpot) { //Angel's version with gamma -> gamma*m 
+
+    double velcsqrt {sqrt(2.*gamma*Temperature)}; 
+    
+    double poscsqrt {velcsqrt/gamma}; 
+    double tau1 {(1-exp(-gamma*dt))/gamma}; 
+    double tau2 {(1-exp(-2.*gamma*dt))/(2.*gamma)}; 
+    double zc11 {sqrt(tau2)};
+    double zc21 {(tau1-tau2)/zc11}; 
+    double zc22 {sqrt(dt - tau1*tau1/tau2)}; 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            double velcexp {exp(-gamma*dt/mono.Mass)};
+            double poscexp {(1-velcexp)*mono.Mass/(gamma)};  
+            Vector3d Z1; 
+            Vector3d Z2; 
+            Vector3d O1 {Rand::real_normal(), Rand::real_normal(), Rand::real_normal()}; 
+            Vector3d O2 {Rand::real_normal(), Rand::real_normal(), Rand::real_normal()}; 
+            Z1 = zc11*O1;
+            Z2 = zc21*O1 + zc22*O2; 
+            Vector3d veltilde {mono.Velocity + mono.Force*dt/(2.*mono.Mass)}; 
+            mono.Velocity = velcexp*veltilde + velcsqrt*Z1/mono.Mass; 
+            mono.Position += poscexp*veltilde + poscsqrt*Z2; 
+        }
+    }
+    calculateForcesBrute(calcEpot); 
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            mono.Velocity += (mono.Force/mono.Mass)*dt*0.5;  
+        }
+    }
+}*/
 
 
 unsigned System::NumberOfParticles() {
@@ -476,6 +588,8 @@ void System::printStatistics(std::ofstream& os, double time) {
     }
     os << std::endl;  
 }
+
+
 
 
     
