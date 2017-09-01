@@ -140,6 +140,7 @@ Vector3d Molecule::RotationFrequency() {
     return omega; 
 }
 
+
 void Molecule::printForces(FILE* f, int step) {
     fprintf(f, "MODEL     %d \n", step);
     for (auto& mono : Monomers) {

@@ -28,6 +28,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_PROC_BIND=CLOSE 
 
 #run
-../../hybridsim_auto parameters.dat > log.out &
+../../hybridsim_auto parameters.dat > log.out 2>err.out &
 child=$!
 wait "$child"

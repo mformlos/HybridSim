@@ -1,0 +1,27 @@
+BoxX = 
+BoxY = 
+BoxZ = 
+
+Temperature = 
+Gamma = 
+
+MDStep = 
+
+StartTime = 0.0
+SimTime = 
+
+SurfaceEnergyStart = 
+SurfaceEnergyEquil = 
+
+AnchorTime =
+
+Seed = 
+
+OutputStepFile = steps
+MoleculeFile = chain
+LinkFile = bonds
+ConfigFile = config
+StatisticsFile = stats
+ConfigOutFile = configs/config
+ForceUpdateFile = force
+ExtensionFile = extension

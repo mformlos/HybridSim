@@ -35,10 +35,31 @@ inline double RLJ_Force(double r2) {
 	return force;
 }
 
+inline double LJSurf_Potential(double r2, double eps = 1.0) {
+    double potential {0.0}; 
+    if (r2 < 6.25) {
+        double rm6 {1.0/r2}; 
+        rm6 *= rm6*rm6; 
+        potential = 4.0*eps*rm6*(rm6-1.0); 
+    }
+    return potential; 
+}
+
+inline double LJSurf_Force(double r2, double eps = 1.0) {
+    double force{0.0};
+	if (r2 < 6.25) {
+		double rm2 { 1.0 / r2 };
+		double rm6 { rm2*rm2*rm2 };
+		force = 24.*eps*rm2*rm6*(2.*rm6 - 1);
+	}
+	return force;
+}
+
 inline double Harmonic_Potential(double r2, double k) {
     double potential {k*r2/2.0}; 
     return potential; 
 }
+
 
 
 #endif

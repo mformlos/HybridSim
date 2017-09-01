@@ -43,6 +43,16 @@ inline Vector3d relative(const Particle& one, const Particle& two, const std::ar
     return dist;
 } 
 
+inline Vector3d relative(const Vector3d& one, const Vector3d& two, const std::array<unsigned, 3>& BoxSize, const double& delrx) {
+    Vector3d dist {two - one}; 
+    double cy {round(dist(1)/BoxSize[1])}; 
+    dist(0) -= cy*delrx; 
+    dist(0) -= BoxSize[0]*round(dist(0)/BoxSize[0]); 
+    dist(1) -= BoxSize[1]*cy; 
+    dist(2) -= BoxSize[2]*round(dist(2)/BoxSize[2]); 
+    return dist;
+} 
+
 inline void wrapCOM(Molecule& mol, const std::array<unsigned, 3>& BoxSize, const double& Shear, const double& delrx) {
     Vector3d COMPos {mol.centerOfMassPosition()}; 
     Vector3d Translate {Vector3d::Zero()}; 

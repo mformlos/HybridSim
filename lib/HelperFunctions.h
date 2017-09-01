@@ -29,3 +29,25 @@ bool initializeStepVector(std::vector<unsigned>& vec, std::string filename) {
     } 
     return true; 
 } 
+
+struct ForceUpdate {
+    unsigned Step; 
+    Vector3d Force; 
+    ForceUpdate(unsigned s, Vector3d f) : 
+        Step {s}, 
+        Force {f} {}
+}; 
+
+bool initializeForceUpdateVector(std::vector<ForceUpdate>& vec, std::string filename) {
+    std::ifstream file (filename, ios::in); 
+    if (!file.is_open()) {
+        return false; 
+    }
+    unsigned Step{};
+    double fx{}, fy{}, fz{}; 
+    while(file >> Step >> fx >> fy >> fz) {
+        Vector3d Force(fx, fy, fz); 
+        vec.push_back(ForceUpdate(Step, Force)); 
+    } 
+    return true; 
+} 

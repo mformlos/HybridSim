@@ -1,103 +1,109 @@
+
+#include <sys/time.h>
 #include "System.h"
 #include "HelperFunctions.h"
 
+
 int main() {
-    System sys_test(40,40,40, 0.0); 
+    System sys_test(50,50,200, 0.0, 2.0, true); 
     std::vector<unsigned> OutputSteps; 
     std::vector<unsigned>::iterator OutputStepsIt{};
+    unsigned TotalSteps {100000};
     
-    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 2.0); 
+    
+    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 1.0); 
     sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
     sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
     initializeStepVector(OutputSteps, "/home/formanek/HYBRIDSIM/input/teststeps"); 
     OutputStepsIt = OutputSteps.begin();    
-    unsigned monocount {0}, bondcount {0};  
-    for (auto& mol : sys_test.Molecules) {
-        //std::cout << "new molecule" << std::endl; 
-        for (auto& mono : mol.Monomers) {
-            monocount++; 
-            for (auto& bond : mono.Bonds) {
-                bondcount++; 
-                //std::cout << &mono << " " << bond << std::endl;   
-            }
-        }
-    }
-    std::cout << "we have " << monocount << " monomers and " << bondcount << " bonds in total" << std::endl; 
     
-    std::vector<Vector3d> COMPos;
-    for (auto& mol : sys_test.Molecules) {
-        COMPos.push_back(mol.centerOfMassPosition()); 
-    }
+    std::cout << "radius of gyration: " << sys_test.Molecules[0].radiusOfGyration() << std::endl; 
     
-    for (unsigned i = 0; i < COMPos.size(); i++) {
-        std::cout << i << " " << COMPos[i].transpose() << std::endl; 
-        for (unsigned j = i+1; j < COMPos.size(); j++) {
-            double distance {(COMPos[i] - COMPos[j]).norm()}; 
-            if (distance < 100) std::cout << i << " " << j << " " << distance << std::endl;     
-        } 
-    }
-    
-    double rgyr_mean {}; 
-    unsigned mol_count {}; 
-    for (auto& mol : sys_test.Molecules) {
-        double rgyr {mol.radiusOfGyration()}; 
-        rgyr_mean += rgyr; 
-        ++mol_count; 
-        std::cout << rgyr << std::endl; 
-    }
-    rgyr_mean /= mol_count; 
-    std::cout << "mean radius of gyration: " << rgyr_mean << std::endl; 
-    
-    Particle test_part{}; 
-    test_part.Position(0) = 24.0; 
-    test_part.Position(1) = 13.0; 
-    test_part.Position(2) = 37.0; 
+
     FILE* pdb {}; 
     pdb = fopen("pdb_equil_langevin.pdb", "w");
-    Vector3d vec {-COMPos.front()}; 
-    vec[0] += sys_test.BoxSize[0]*0.5; 
-    vec[1] += sys_test.BoxSize[1]*0.5; 
-    vec[2] += sys_test.BoxSize[2]*0.5; 
-    sys_test.Molecules.front().translate(vec);
-    sys_test.printPDB(pdb, 0);
     
-    /*vec[0] = sys_test.BoxSize[0]*0.5+5.0; 
-    vec[1] = sys_test.BoxSize[1]*0.5+3.0;
-    vec[2] = sys_test.BoxSize[2]*0.5+12.0;  
-    sys_test.Molecules.front().translate(vec);
-    */
-    std::cout << "center of mass out of box: " << sys_test.Molecules.front().centerOfMassPosition().transpose() << std::endl;
-    std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
-    sys_test.printPDB(pdb, 0); 
-    
-    wrapCOM(sys_test.Molecules.front(), sys_test.BoxSize, 0.0, 0.5); 
-    sys_test.printPDB(pdb, 0); 
-    
+    Vector3d NewCOM (20., 20., 100.); 
+    sys_test.setMoleculeCOM(0, NewCOM);
+     
+    double mindist{100.}; 
+    for (auto& mono : sys_test.Molecules[0].Monomers) {
+        if (mono.Position(2) < mindist) mindist = mono.Position(2);
+    } 
+    std::cout << "minimum distance to wall: " << mindist << std::endl; 
+    NewCOM(2) = NewCOM(2) - mindist + 1.3;
+    sys_test.setMoleculeCOM(0,NewCOM); 
    
     
-    std::cout << "new center of mass: " << sys_test.Molecules.front().centerOfMassPosition().transpose() << std::endl; 
+      
+    sys_test.printPDB(pdb, 0); 
     
-    std::cout << "distance to test particle: " << relative(sys_test.Molecules.front().Monomers.back(), test_part, sys_test.BoxSize, 0.5).transpose() << std::endl; 
-    //sys_test.updateVerletLists(); 
     sys_test.calculateForcesBrute(true); 
     std::cout << sys_test.PotentialEnergy() << std::endl; 
     ofstream gyr{"./results/NH-SCNP-0-langevin-stats-2-mass.dat"}; 
-
+    ofstream ext{"./results/ext.dat"};
+    ofstream comstat("./results/adsorptionCOM.dat"); 
     
-    for (unsigned i = 0; i < 10000000; i++) {
+    timeval start {}, end {};
+    gettimeofday(&start, NULL); 
+    
+    bool anchored {false}; 
+    bool force_set {false}; 
+    Vector3d force(0.0, 0.0, 0.005);
+    
+    for (unsigned i = 0; i < TotalSteps; i++) {
         if (i == *OutputStepsIt) {
-            sys_test.propagateLangevin(0.001, 1., 0.05, true); 
+            sys_test.propagateLangevin(0.01, 1., 0.05, true); 
             //sys_test.propagate(0.001, true); 
-            sys_test.printStatistics(gyr, i*0.001);
-            std::cout << 0.001*i << std::endl; 
+            sys_test.printStatistics(gyr, i*0.01);
+            sys_test.printForceExtension(ext, i*0.01, 2);
+            sys_test.printPDB(pdb,i);
+            comstat << 0.01*i << " " << sys_test.Molecules[0].centerOfMassPosition().transpose() << std::endl; 
+            std::cout << 0.01*i << std::endl; 
             OutputStepsIt++;
+        }        
+        else sys_test.propagateLangevin(0.01, 1., 0.05); //sys_test.propagate(0.001); //
+
+        if (!anchored && i > 15000) {
+            if (sys_test.Molecules[0].Monomers[0].Position(2) <= 1.05 && sys_test.Molecules[0].Monomers[0].Position(2) >= 0.9 ) {
+                Vector3d pos {sys_test.Molecules[0].Monomers[0].Position};
+                pos(2) = 0.0; 
+                sys_test.setAnchor(0, pos); 
+                Vector3d relPos {pos - sys_test.Molecules[0].Monomers[0].Position}; 
+                double radius2 {relPos.squaredNorm()};
+                std::cout << "relPos: " << relPos.transpose() << "\nradius2: " << radius2 << std::endl;
+                std::cout << "Epot in FENE for Anchor: " << FENE_Potential(radius2) << std::endl;  
+                std::cout << "Force in FENE for Anchor: " << FENE_Force(radius2) << std::endl;
+                sys_test.SurfaceEnergy = 1.5; 
+                sys_test.calculateForcesBrute(false);
+                anchored = true; 
+                std::cout << "Chain begin anchored at time " << i*0.01 << std::endl; 
+            }
         }
-        else sys_test.propagateLangevin(0.001, 1., 0.05); //sys_test.propagate(0.001); //
+        
+        if (anchored && !force_set && i > 1000000) {
+            std::cout << "starting force application" << std::endl; 
+            sys_test.setDrive(force, 199); 
+            force_set = true; 
+            sys_test.calculateForcesBrute(false);
+        }
+        
+        if (force_set && i%100000==0) {
+            force(2) += 0.01; 
+            sys_test.changeDrive(force, 199);
+            sys_test.calculateForcesBrute(false);
+        } 
+        
+        
+        
     }
     
     fclose(pdb); 
     
+    gettimeofday(&end, NULL); 
+    double realTime = ((end.tv_sec  - start.tv_sec) * 1000000u + end.tv_usec - start.tv_usec) / 1.e6;
+    std::cout << "total time: " << realTime << " , time per step: " << realTime/TotalSteps << std::endl;
     
     return 0; 
 }

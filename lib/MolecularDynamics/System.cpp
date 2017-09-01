@@ -1,13 +1,13 @@
 #include "System.h"
 
-System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, bool SMDon, double k) : 
+System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn) : 
     Cutoff {1.5}, 
     VerletRadius {2.0}, 
     VerletRadiusSq {4.0},
     delrx {0.0}, 
     Shear {gamma},
-    SMDconstant {k}, 
-    SMD {SMDon} {
+    SurfaceEnergy {energy},
+    Adsorption {AdsorptionOn} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -21,14 +21,14 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, bool SMDon, 
     }
     
 
-System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma, bool SMDon, double k) : 
+System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn) : 
     Cutoff {aCutoff}, 
     VerletRadius {aVerletRadius}, 
     VerletRadiusSq {aVerletRadius*aVerletRadius},
     delrx {0.0}, 
     Shear {gamma},
-    SMDconstant {k}, 
-    SMD {SMDon} {
+    SurfaceEnergy {energy},
+    Adsorption {AdsorptionOn} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -170,11 +170,38 @@ void System::calculateForces(bool calcEpot) {
                 force = relPos*force_abs; 
                 mono.Force -= force; 
                 bonded -> Force += force; 
+            }
+            
+            if (Adsorption) {
+                double radius2 {pow(mono.Position(2),2)}; 
+                if (calcEpot) mol.Epot += LJSurf_Potential(radius2, SurfaceEnergy); 
+                force_abs = LJSurf_Force(radius2, SurfaceEnergy); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    throw(LJSurfException(mono.Identifier, mono.Position, mono.Velocity, force_abs)); 
+                } 
+                mono.Force(2) += mono.Position(2)*force_abs; 
             } 
         }
     }
     
-    if (SMD) {
+    for (auto& drivepair : Driven) {
+        drivepair.DrivenParticle -> Force += drivepair.Force; 
+    }
+    
+    for (auto& anch : Anchors) {
+        Vector3d relPos {relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx)}; 
+        double radius2 {relPos.squaredNorm()}; 
+        if (calcEpot) { 
+            Molecules[0].Epot += FENE_Potential(radius2); 
+        }    
+        force_abs = FENE_Force(radius2); 
+            if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                throw(FENEException(anch.AnchoredParticle -> Identifier, -1, force_abs)); 
+            }
+        force = relPos*force_abs; 
+        anch.AnchoredParticle -> Force -= force;   
+    } 
+    /*if (SMD) {
         for (auto& part : SMDParticles) {
             Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
             if (calcEpot) {
@@ -183,7 +210,7 @@ void System::calculateForces(bool calcEpot) {
             }    
             part -> Force -= SMDconstant*relPos;  
         }   
-    }
+    }*/
     
 }
 
@@ -228,10 +255,37 @@ void System::calculateForcesBrute(bool calcEpot) {
                 force = relPos*force_abs; 
                 mol.Monomers[i].Force -= force; 
                 bonded -> Force += force; 
-            }        
+            }
+            if (Adsorption) {
+                double radius2 {pow(mol.Monomers[i].Position(2),2)}; 
+                if (calcEpot) mol.Epot += LJSurf_Potential(radius2, SurfaceEnergy); 
+                force_abs = LJSurf_Force(radius2, SurfaceEnergy); 
+                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                    throw(LJSurfException(mol.Monomers[i].Identifier, mol.Monomers[i].Position, mol.Monomers[i].Velocity, force_abs)); 
+                } 
+                mol.Monomers[i].Force(2) += mol.Monomers[i].Position(2)*force_abs; 
+            }         
         }
     }
-    if (SMD) {
+    
+    for (auto& drivepair : Driven) {
+        drivepair.DrivenParticle -> Force += drivepair.Force; 
+    }
+    
+    for (auto& anch : Anchors) {
+        Vector3d relPos {relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx)}; 
+        double radius2 {relPos.squaredNorm()};
+        if (calcEpot) { 
+            Molecules[0].Epot += FENE_Potential(radius2); 
+        }    
+        force_abs = FENE_Force(radius2); 
+        if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+            throw(FENEException(anch.AnchoredParticle -> Identifier, -1, force_abs)); 
+        }
+        force = relPos*force_abs; 
+        anch.AnchoredParticle -> Force -= force;   
+    } 
+        /*if (SMD) {
         for (auto& part : SMDParticles) {
             Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
             if (calcEpot) {
@@ -240,7 +294,7 @@ void System::calculateForcesBrute(bool calcEpot) {
             }    
             part -> Force -= SMDconstant*relPos;  
         }   
-    }
+    }*/
     
 }
             
@@ -386,7 +440,32 @@ void System::wrapMoleculesCOM() {
     }
 }
 
-void System::setSMDParticles(std::vector<unsigned> PartNumbers) {
+bool System::setDrive(Vector3d aForce, unsigned PartNumber) {
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            if (mono.Identifier == PartNumber) {
+                Driven.push_back(Drive(aForce, &mono));  
+                return true; 
+            }
+        }
+    }
+    std::cout << "Particle identifier does not exist!" << std::endl; 
+    return false; 
+}
+
+bool System::changeDrive(Vector3d aForce, unsigned PartNumber) {
+    for (auto& drivepair : Driven) {
+        if (drivepair.DrivenParticle -> Identifier == PartNumber) {
+            drivepair.Force = aForce; 
+            return true; 
+        }
+    }
+    std::cout << "Particle " << PartNumber << " was not set to be driven!" << std::endl;
+    return false; 
+}
+
+
+/*void System::setSMDParticles(std::vector<unsigned> PartNumbers) {
     for (auto& number : PartNumbers) {
         if (number > Molecules[0].NumberOfMonomers) {
             std::cout << "SMD only works with 1 Molecule so far" << std::endl; 
@@ -399,6 +478,24 @@ void System::setSMDParticles(std::vector<unsigned> PartNumbers) {
 void System::setupSMD(Vector3d pos, Vector3d vel) {
     SMDdrivingParticle.Position = pos; 
     SMDdrivingParticle.Velocity = vel; 
+}*/
+
+void System::setAnchor(unsigned PartNumber, Vector3d AnchorPos) {
+    if (PartNumber > Molecules[0].NumberOfMonomers) {
+        std::cout << "Anchoring currently only works with 1 Molecule" << std::endl; 
+        return;  
+    }
+    Anchors.push_back(Anchor(AnchorPos, &Molecules[0].Monomers[PartNumber]));    
+}
+
+void System::setAnchorAuto(unsigned PartNumber) {
+    if (PartNumber > Molecules[0].NumberOfMonomers) {
+        std::cout << "Anchoring currently only works with 1 Molecule" << std::endl; 
+        return;  
+    }
+    Vector3d AnchorPos (Molecules[0].Monomers[PartNumber].Position); 
+    AnchorPos(2) = 0.0; 
+    Anchors.push_back(Anchor(AnchorPos, &Molecules[0].Monomers[PartNumber]));    
 }
 
 void System::propagate(double dt, bool calcEpot) {
@@ -411,9 +508,9 @@ void System::propagate(double dt, bool calcEpot) {
     }
     //checkVerletLists(); 
     //calculateForces(calcEpot); 
-    if (SMD) {
+    /*if (SMD) {
         SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
-    }
+    }*/
     calculateForcesBrute(calcEpot); 
     
     for (auto& mol : Molecules) {
@@ -446,9 +543,9 @@ void System::propagateLangevin(double dt, double Temperature, double gamma, bool
             mono.Position += poscexp*veltilde + poscsqrt*Z2/sqrt(mono.Mass); 
         }
     }
-    if (SMD) {
+    /*if (SMD) {
         SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
-    }
+    }*/
     calculateForcesBrute(calcEpot); 
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
@@ -540,6 +637,14 @@ Vector3d System::RotationFrequency() {
     return omega; 
 }
 
+std::vector<double> System::calculateExtension(unsigned dim) {
+    std::vector<double> Extension; 
+    for (auto& mol : Molecules) {
+        Extension.push_back(abs(mol.Monomers.front().Position(dim) - mol.Monomers.back().Position(dim))); 
+    }
+    return Extension; 
+}
+
 void System::printPDB(FILE* pdb, int step, bool velocs) {
     int mol_count{0}; 
     fprintf(pdb, "MODEL     %d \n", step);
@@ -590,6 +695,19 @@ void System::printStatistics(std::ofstream& os, double time) {
 }
 
 
-
+void System::printForceExtension(std::ofstream& os, double time, unsigned dim) {
+    std::vector<double> Extension {calculateExtension(dim)}; 
+    os.precision(6); 
+    os.width(14); 
+    os << time << " "; 
+    os.width(14); 
+    if (Driven.empty()) os << 0.0 << " "; 
+    else os << Driven.front().Force(dim) << " "; 
+    for (auto& ext : Extension) {
+        os.width(14);
+        os << ext << " "; 
+    }
+    os << std::endl;  
+}
 
     

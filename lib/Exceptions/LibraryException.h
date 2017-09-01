@@ -44,6 +44,18 @@ class RLJException : public ForceException
         }
 }; 
 
+class LJSurfException : public ForceException 
+{
+    public: 
+        std::string ErrorMessage; 
+        ~LJSurfException() throw() {};  
+        const char* what() const noexcept {return ErrorMessage.c_str(); }
+        LJSurfException(int Id, Vector3d Pos, Vector3d Vel, double aForce) 
+        {
+         ErrorMessage = "An overflow error occurred in a Lennard-Jones surface force calculation for the following particle: "+std::to_string(Id)+" Position: "+std::to_string(Pos(0))+" "+std::to_string(Pos(1))+" "+std::to_string(Pos(2))+" Velocity: "+std::to_string(Vel(0))+" "+std::to_string(Vel(1))+ " "+std::to_string(Vel(2))+" \n Force: "+std::to_string(aForce)+"\n" ; 
+        }
+};
+
 class CellAllocationException : public std::exception {
     public: 
         std::string ErrorMessage; 
