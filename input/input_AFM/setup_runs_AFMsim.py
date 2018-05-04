@@ -9,13 +9,13 @@ from collections import namedtuple
 
 random.seed()
 RunsPerSCNP = 5
-Parameter = namedtuple("Parameters", "Box, Temperature, Gamma, MDStep, SimTime, SurfaceEnergyStart, SurfaceEnergyEquil, AnchorTime, SCNPNumber")
+Parameter = namedtuple("Parameters", "Box, Temperature, Gamma, MDStep, SimTime, SurfaceEnergyStart, SurfaceEnergyEquil, EquilTime, AnchorTime, SCNPNumber")
 
 Box = namedtuple("Box", ["Lx", "Ly", "Lz"])
 
 ParameterSets = []
 
-ParameterSets.append(Parameter(Box(50, 50, 200), 1.0, 0.05, 0.01, 1000000.0, 2.0, 1.5, 500., [1, 17]))
+ParameterSets.append(Parameter(Box(400, 400, 400), 1.0, 0.05, 0.01, 50100000.0, 2.0, 2.0, 10000., 500., [18, 16, 26]))
 
 submit_files =open("runs_to_submit.dat", "w")
 if not os.path.exists("/scratch-new/formanek/AFMSIM/"): 
@@ -31,6 +31,7 @@ for paramSet in ParameterSets:
     Gamma = paramSet.Gamma
     MDStep = paramSet.MDStep
     SimTime = paramSet.SimTime
+    EquilTime = paramSet.EquilTime
     AnchorTime = paramSet.AnchorTime
     SurfaceEnergyStart = paramSet.SurfaceEnergyStart
     SurfaceEnergyEquil = paramSet.SurfaceEnergyEquil    
@@ -41,7 +42,8 @@ for paramSet in ParameterSets:
             directory = "/scratch-new/formanek/AFMSIM/runs/"+run_name
             
             if os.path.exists(directory):
-                shutil.rmtree(directory)
+                print "path "+str(directory)+" already exists!" 
+                break 
             os.makedirs(directory) 
             os.makedirs(directory+"/configs")
             shutil.copyfile("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-"+str(SCNP)+"-config", directory+"/config")
@@ -63,8 +65,9 @@ for paramSet in ParameterSets:
                 outF.write("SimTime = "+str(SimTime)+"\n\n")
                 outF.write("SurfaceEnergyStart = "+str(SurfaceEnergyStart)+"\n")
                 outF.write("SurfaceEnergyEquil = "+str(SurfaceEnergyEquil)+"\n\n")
+                outF.write("EquilTime = "+str(EquilTime)+"\n")
                 outF.write("AnchorTime = "+str(AnchorTime)+"\n\n")
-                outF.write("Seed = "+str(AnchorTime)+"\n\n")
+                outF.write("Seed = "+str(Seed)+"\n\n")
                 
                 lineInd = 0
                 for currLine in lines: 

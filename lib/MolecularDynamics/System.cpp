@@ -1,13 +1,14 @@
 #include "System.h"
 
-System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn) : 
+System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn, bool PBCon) : 
     Cutoff {1.5}, 
     VerletRadius {2.0}, 
     VerletRadiusSq {4.0},
     delrx {0.0}, 
     Shear {gamma},
     SurfaceEnergy {energy},
-    Adsorption {AdsorptionOn} {
+    Adsorption {AdsorptionOn},
+    PBC{PBCon} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -21,14 +22,15 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energ
     }
     
 
-System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn) : 
+System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn, bool PBCon) : 
     Cutoff {aCutoff}, 
     VerletRadius {aVerletRadius}, 
     VerletRadiusSq {aVerletRadius*aVerletRadius},
     delrx {0.0}, 
     Shear {gamma},
     SurfaceEnergy {energy},
-    Adsorption {AdsorptionOn} {
+    Adsorption {AdsorptionOn},
+    PBC {PBCon} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
@@ -62,13 +64,13 @@ void System::updateVerletLists() {
     
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
-            Vector3d imPos{image(mono, BoxSize, delrx)}; 
+            Vector3d imPos; 
+            if (PBC) imPos = image(mono, BoxSize, delrx);
+            else imPos = mono.Position; 
             for (unsigned i = 0; i < 3; i++) {
                 CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
             }
             mono.VerletPosition = mono.Position; 
-            //std::cout << "CellNumber: " << CellNumber[0] << " " << CellNumber[1] << " " << CellNumber[2] << " Position: " << mono.Position.transpose() << " image position: " << imPos.transpose()<< std::endl;
-            //CellList[CellNumber[0]][CellNumber[1]][CellNumber[2]].push_front(&mono); 
             try {
                 CellList[CellNumber[0]][CellNumber[1]][CellNumber[2]].push_front(&mono); 
             }
@@ -80,13 +82,12 @@ void System::updateVerletLists() {
     int l, m, n; 
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
-            Vector3d imPos{image(mono, BoxSize, delrx)}; 
+            Vector3d imPos; 
+            if (PBC) imPos = image(mono, BoxSize, delrx);
+            else imPos = mono.Position; 
             for (unsigned i = 0; i < 3; i++) { 
                 CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
             }
-            /*if (mono.Position(1) > BoxSize[1]-CellSideLength[1] && delrx > CellSideLength[1]) {
-                            std::cout << delrx << " " << CellNumber[0] << " " << CellNumber[1] << " " << CellNumber[2] << endl;;  
-            }*/
             for (int i = CellNumber[0]-2; i < CellNumber[0]+3; i++) {
                 
                 for (int j = CellNumber[1]-2; j < CellNumber[1]+3; j++) {
@@ -96,13 +97,11 @@ void System::updateVerletLists() {
                         l -= floor((double)l/Cells[0])*Cells[0]; 
                         m = j - floor((double)j/Cells[1])*Cells[1];
                         n = k - floor((double)k/Cells[2])*Cells[2]; 
-                        /*if (mono.Position(1) > BoxSize[1]-CellSideLength[1] && delrx > CellSideLength[1]) {
-                            std::cout << l << " " << m << " " << n << endl;;  
-                        }*/
                         for (auto& other : CellList[l][m][n]) {
                             if (other == &mono) continue; 
-                            Vector3d relPos {relative(mono, *other, BoxSize, delrx)}; 
-                            //TODO: boundary conditions 
+                            Vector3d relPos; 
+                            if (PBC) relPos = relative(mono, *other, BoxSize, delrx);
+                            else relPos = other -> Position - mono.Position; 
                             double distance {relPos.squaredNorm()}; 
                             if (distance <= VerletRadiusSq) {
                                 mono.VerletList.push_front(other); 
@@ -139,7 +138,9 @@ void System::calculateForces(bool calcEpot) {
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
             for (auto& other : mono.VerletList) {
-                Vector3d relPos {relative(mono, *other, BoxSize, delrx)};  
+                Vector3d relPos;
+                if (PBC) relPos = relative(mono, *other, BoxSize, delrx); 
+                else relPos = other -> Position - mono.Position;  
                 double radius2 {relPos.squaredNorm()};
                 if (calcEpot) {
                     mol.Epot += 0.5*RLJ_Potential(radius2);
@@ -154,12 +155,11 @@ void System::calculateForces(bool calcEpot) {
             }
             
             for (auto& bonded : mono.Bonds) {
-                //count_bonds++; 
-                Vector3d relPos {relative(mono, *bonded, BoxSize, delrx)}; 
+                Vector3d relPos;
+                if (PBC) relPos = relative(mono, *bonded, BoxSize, delrx); 
+                else relPos = bonded -> Position - mono.Position;  
                 double radius2 {relPos.squaredNorm()}; 
                 if (calcEpot) {
-                    //double fene {FENE_Potential(radius2)}; 
-                    //if (radius2 > 2.25) std::cout << "fene: " << fene << " bond radius: " << radius2 << " at mono: " << mono_count <<  std::endl; 
                     mol.Epot += FENE_Potential(radius2);
                     
                 }    
@@ -189,7 +189,9 @@ void System::calculateForces(bool calcEpot) {
     }
     
     for (auto& anch : Anchors) {
-        Vector3d relPos {relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx)}; 
+        Vector3d relPos;
+        if (PBC) relPos = relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx);
+        else relPos = anch.AnchorPoint - anch.AnchoredParticle -> Position;  
         double radius2 {relPos.squaredNorm()}; 
         if (calcEpot) { 
             Molecules[0].Epot += FENE_Potential(radius2); 
@@ -200,18 +202,7 @@ void System::calculateForces(bool calcEpot) {
             }
         force = relPos*force_abs; 
         anch.AnchoredParticle -> Force -= force;   
-    } 
-    /*if (SMD) {
-        for (auto& part : SMDParticles) {
-            Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
-            if (calcEpot) {
-                double radius2 {relPos.squaredNorm()}; 
-                Molecules[0].Epot += SMDconstant*radius2*0.5; 
-            }    
-            part -> Force -= SMDconstant*relPos;  
-        }   
-    }*/
-    
+    }    
 }
 
 void System::calculateForcesBrute(bool calcEpot) {
@@ -223,9 +214,10 @@ void System::calculateForcesBrute(bool calcEpot) {
     }
     for (auto& mol : Molecules) {
         for (unsigned i = 0; i < mol.NumberOfMonomers; i++) {
-            for (unsigned j = i+1; j < mol.NumberOfMonomers; j++) {            
-                Vector3d relPos {relative(mol.Monomers[i], mol.Monomers[j], BoxSize, delrx)};
-                //Vector3d relPos {mol.Monomers[j].Position - mol.Monomers[i].Position}; 
+            for (unsigned j = i+1; j < mol.NumberOfMonomers; j++) {
+                Vector3d relPos;             
+                if (PBC) relPos = relative(mol.Monomers[i], mol.Monomers[j], BoxSize, delrx);
+                else relPos = mol.Monomers[j].Position - mol.Monomers[i].Position; 
                 double radius2 {relPos.squaredNorm()}; 
                 if (calcEpot) {
                     mol.Epot += RLJ_Potential(radius2); 
@@ -242,8 +234,9 @@ void System::calculateForcesBrute(bool calcEpot) {
                 mol.Monomers[j].Force += force;     
             }
             for (auto& bonded : mol.Monomers[i].Bonds) {
-                Vector3d relPos {relative(mol.Monomers[i], *bonded, BoxSize, delrx)}; 
-                //Vector3d relPos {bonded->Position - mol.Monomers[i].Position};
+                Vector3d relPos;
+                if (PBC) relPos = relative(mol.Monomers[i], *bonded, BoxSize, delrx); 
+                else relPos = bonded->Position - mol.Monomers[i].Position;
                 double radius2 {relPos.squaredNorm()}; 
                 if (calcEpot) {
                     mol.Epot += FENE_Potential(radius2); 
@@ -273,7 +266,9 @@ void System::calculateForcesBrute(bool calcEpot) {
     }
     
     for (auto& anch : Anchors) {
-        Vector3d relPos {relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx)}; 
+        Vector3d relPos;
+        if (PBC) relPos = relative(anch.AnchoredParticle -> Position, anch.AnchorPoint, BoxSize, delrx);
+        else relPos = anch.AnchorPoint - anch.AnchoredParticle -> Position;   
         double radius2 {relPos.squaredNorm()};
         if (calcEpot) { 
             Molecules[0].Epot += FENE_Potential(radius2); 
@@ -285,17 +280,6 @@ void System::calculateForcesBrute(bool calcEpot) {
         force = relPos*force_abs; 
         anch.AnchoredParticle -> Force -= force;   
     } 
-        /*if (SMD) {
-        for (auto& part : SMDParticles) {
-            Vector3d relPos {relative(*part, SMDdrivingParticle, BoxSize, delrx)}; 
-            if (calcEpot) {
-                double radius2 {relPos.squaredNorm()}; 
-                Molecules[0].Epot += SMDconstant*radius2*0.5; 
-            }    
-            part -> Force -= SMDconstant*relPos;  
-        }   
-    }*/
-    
 }
             
 
@@ -384,6 +368,33 @@ bool System::initializePositions(std::string filename) {
     return true; 
 }
 
+bool System::initializeVelocities(std::string filename) {
+    std::ifstream file {filename};
+    if (!file.is_open()) return false; 
+    double x, y, z;  
+    unsigned count {0}; 
+    if (file.is_open()) {  
+        for (auto& mol : Molecules) {
+            for (auto& mono : mol.Monomers) {
+                if (file >> x >> y >> z) {
+                    mono.Velocity(0) = x; 
+                    mono.Velocity(1) = y; 
+                    mono.Velocity(2) = z; 
+                    count++; 
+                }
+                else {
+                    std::cout << "only " << count << " monomers were initialized" << std::endl; 
+                    return false; 
+                }
+            }
+        }
+    }
+    std::cout << "all " << count << " monomers were initialized" << std::endl; 
+    if (file >> x >> y >> z) std::cout << "...but there is more data..." << std::endl; 
+    return true; 
+}
+
+
 void System::initializeVelocitiesRandom(double Temperature) {
     Vector3d COMVel {Vector3d::Zero()}; 
     unsigned totalMonomers {}; 
@@ -435,6 +446,10 @@ void System::centerMolecule(unsigned molIndex) {
 }
 
 void System::wrapMoleculesCOM() {
+    if (!PBC) {
+        std::cout << "periodic boundary conditions not activated!" << std::endl; 
+        return;
+    }
     for (auto& mol : Molecules) {
         wrapCOM(mol, BoxSize, Shear, delrx); 
     }
@@ -461,6 +476,30 @@ bool System::changeDrive(Vector3d aForce, unsigned PartNumber) {
         }
     }
     std::cout << "Particle " << PartNumber << " was not set to be driven!" << std::endl;
+    return false; 
+}
+
+bool System::setConstraint(double aConstraint, unsigned PartNumber) {
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            if (mono.Identifier == PartNumber) {
+                Constraints.push_back(Constraint(aConstraint, &mono));  
+                return true; 
+            }
+        }
+    }
+    std::cout << "Particle identifier does not exist!" << std::endl; 
+    return false; 
+}
+
+bool System::changeConstraint(double aConstraint, unsigned PartNumber) {
+    for (auto& constraintpair : Constraints) {
+        if (constraintpair.ConstrainedParticle -> Identifier == PartNumber) {
+            constraintpair.ConstraintPoint = aConstraint; 
+            return true; 
+        }
+    }
+    std::cout << "Particle " << PartNumber << " was not set to be constraint!" << std::endl;
     return false; 
 }
 
@@ -546,6 +585,9 @@ void System::propagateLangevin(double dt, double Temperature, double gamma, bool
     /*if (SMD) {
         SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
     }*/
+    for (auto& constraintpair : Constraints) {
+        constraintpair.ConstrainedParticle -> Position(2) = constraintpair.ConstraintPoint; 
+    }
     calculateForcesBrute(calcEpot); 
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
@@ -641,6 +683,7 @@ std::vector<double> System::calculateExtension(unsigned dim) {
     std::vector<double> Extension; 
     for (auto& mol : Molecules) {
         Extension.push_back(abs(mol.Monomers.front().Position(dim) - mol.Monomers.back().Position(dim))); 
+        Extension.push_back((mol.Monomers.front().Position-mol.Monomers.back().Position).norm());
     }
     return Extension; 
 }
@@ -667,14 +710,14 @@ void System::printPDB(FILE* pdb, int step, bool velocs) {
 }
 
 void System::printStatistics(std::ofstream& os, double time) {
-    os.precision(6); 
     double Ekin {KineticEnergy()}, Epot {PotentialEnergy()}; 
     Vector3d Omega {RotationFrequency()}; 
     std::tuple<double, Matrix3d> GyrTuple {GyrationTensor()};
     Matrix3d GyrTensor {std::get<1>(GyrTuple)}; 
-    os.precision(6); 
-    os.width(14); 
+    os.precision(10); 
+    os.width(16); 
     os << time << " "; 
+    os.precision(6); 
     os.width(14); 
     os << Ekin << " ";
     os.width(14); 
@@ -697,9 +740,10 @@ void System::printStatistics(std::ofstream& os, double time) {
 
 void System::printForceExtension(std::ofstream& os, double time, unsigned dim) {
     std::vector<double> Extension {calculateExtension(dim)}; 
-    os.precision(6); 
-    os.width(14); 
-    os << time << " "; 
+    os.precision(10); 
+    os.width(16); 
+    os << time << " ";
+    os.precision(6);  
     os.width(14); 
     if (Driven.empty()) os << 0.0 << " "; 
     else os << Driven.front().Force(dim) << " "; 
@@ -707,6 +751,18 @@ void System::printForceExtension(std::ofstream& os, double time, unsigned dim) {
         os.width(14);
         os << ext << " "; 
     }
+    os << std::endl;  
+}
+
+void System::printExtensionForce(std::ofstream& os, double time, unsigned dim) {
+    os.precision(10); 
+    os.width(16); 
+    os << time << " ";
+    os.precision(6);  
+    os.width(14); 
+    if (Constraints.empty()) os << "NaN ";
+    else os << Constraints.front().ConstraintPoint << " ";  
+    os << Constraints.front().ConstrainedParticle -> Force(dim); 
     os << std::endl;  
 }
 

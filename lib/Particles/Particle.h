@@ -4,6 +4,7 @@
 #include <iostream>
 #include <forward_list>
 #include <../Eigen/Eigen/Dense>
+#include "Potentials.h"
 using namespace Eigen;
 
 

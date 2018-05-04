@@ -18,14 +18,13 @@ void signalHandler(int signum)
 int main(int argc, char* argv[]) {
     SignalCaught = 0;
     signal(SIGINT, signalHandler); 
-    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}; 
-    unsigned long long COMWrapInterval{1000}, MPCInterval {}, EquilSteps{}, SimSteps{}, TotalSteps {}, n {}, m {}; 
+    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, COMWrapInterval{1000}, MPCInterval {}, EquilSteps{}, SimSteps{}, TotalSteps {}, n {}, m {}; 
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
     double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, SimTime{}, Temperature{}, Time{};
     bool ParameterInitialized{}; 
-    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, VelocFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}, FluidInput{}; 
-    std::vector<unsigned long long> OutputSteps; 
-    std::vector<unsigned long long>::iterator OutputStepsIt{};
+    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}, FluidInput{}; 
+    std::vector<unsigned long> OutputSteps; 
+    std::vector<unsigned long>::iterator OutputStepsIt{};
     
     
     if (argc != 2) {
@@ -73,8 +72,6 @@ int main(int argc, char* argv[]) {
     if (!ParameterInitialized) return EXIT_FAILURE; 
     ConfigFile = extractParameter<std::string>("ConfigFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
-    VelocFile = extractParameter<std::string>("VelocFile", inputfile, ParameterInitialized);
-    if (!ParameterInitialized) return EXIT_FAILURE;
     StatisticsFile = extractParameter<std::string>("StatisticsFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
     ConfigOutFile = extractParameter<std::string>("ConfigOutFile", inputfile, ParameterInitialized);
@@ -89,15 +86,15 @@ int main(int argc, char* argv[]) {
     inputfile.close(); 
     TotalTime = EquilTime + SimTime;
     
-    MPCInterval = (unsigned long long) (MPCStep/MDStep); 
+    MPCInterval = (unsigned) (MPCStep/MDStep); 
     if (MPCInterval*MDStep != MPCStep) {
         std::cout << "Steps for MD and MPC MUST be multiples of each other!"; 
         return EXIT_FAILURE; 
     }
     
-    EquilSteps = (unsigned long long) (EquilTime/MDStep); 
-    SimSteps = (unsigned long long) (SimTime/MDStep); 
-    TotalSteps = (unsigned long long) (TotalTime/MDStep); 
+    EquilSteps = (unsigned) (EquilTime/MDStep); 
+    SimSteps = (unsigned) (SimTime/MDStep); 
+    TotalSteps = (unsigned) (TotalTime/MDStep); 
     std::cout << "Total number of MD steps: " << TotalSteps << std::endl;  
      
     ///////////////////////////////////////// 
@@ -111,14 +108,12 @@ int main(int argc, char* argv[]) {
     std::cout << "MPC particles per cell is " << MPCRho << std::endl;
     std::cout << "MDStep is " << MDStep << std::endl;
     std::cout << "MPCStep is " << MPCStep << std::endl;
-    std::cout << "StartTime is " << Time << std::endl;  
     std::cout << "EquilTime is " << EquilTime << std::endl;    
     std::cout << "TotalTime is " << TotalTime << std::endl;
     std::cout << "OutputStepFile is " << OutputStepFile << std::endl;
     std::cout << "MoleculeFile is " << MoleculeFile << std::endl;
     std::cout << "LinkFile is " << LinkFile << std::endl;
     std::cout << "ConfigFile is " << ConfigFile << std::endl;
-    std::cout << "VelocFile is " << VelocFile << std::endl;
     std::cout << "FluidFile is " << FluidFile << std::endl;
     std::cout << "FluidInput is " << FluidInput << std::endl;
     std::cout << "VelProfFile is " << VelProfFile << std::endl;
@@ -143,15 +138,8 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE; 
     } 
  
-    if (VelocFile == "RANDOM") {
-        Sys.initializeVelocitiesRandom(Temperature); 
-    }
-    else {
-        if (!Sys.initializeVelocities(VelocFile)) {
-            std::cout << "VelocFile does not exist or contains too little lines!" << std::endl; 
-            return EXIT_FAILURE; 
-        } 
-    }
+    Sys.initializeVelocitiesRandom(Temperature); 
+    
     //Vector3d newCOM(10., 18.,10.);
     if (Sys.NumberOfMolecules() == 1)  Sys.centerMolecule(0); //Sys.setMoleculeCOM(0,newCOM); 
     else if (Sys.NumberOfMolecules() > 1){
@@ -209,7 +197,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Output will be done " << OutputSteps.size() << " times. " << std::endl; 
     OutputStepsIt = OutputSteps.begin(); 
     
-    std::ofstream StatisticsStream(StatisticsFile, std::ios::out | std::ios::app); 
+    std::ofstream StatisticsStream(StatisticsFile, std::ios::out | std::ios::trunc); 
     FILE* PDBout{}; 
     //PDBout = fopen(ConfigOutFile.c_str(), "w"); 
     
@@ -227,7 +215,6 @@ int main(int argc, char* argv[]) {
     #pragma omp parallel private(tid, n, m)
     {
         /////// OMP PARAMETERS ///////
-        #ifdef _OPENMP
         tid = omp_get_thread_num(); 
         if (tid == 0) {
             printf("Thread %d getting environment info...\n", tid);
@@ -248,18 +235,18 @@ int main(int argc, char* argv[]) {
             printf("Dynamic threads enabled? = %d\n", dynamic);
             printf("Nested parallelism enabled? = %d\n", nested);
         }
-        #endif
+        
         ////// RANDOM ENGINE SEEDING & WARMUP //////
         Rand::seed(tid); 
         Rand::warmup(10000); 
         
         ///////////////////////////////////
         ////// MAIN SIMULATION LOOP ///////
-        m = -EquilSteps + (unsigned long long)(Time/MDStep); 
+        m = -EquilSteps; 
         for (n = 0; n <= TotalSteps; n++) {
             #pragma omp single 
             {
-                //std::cout << n << " " << m << std::endl; 
+                //std::cout << n << std::endl; 
                 Time += MDStep; 
                 Mpc.updateBoxShift(MDStep); 
                 Sys.delrx = Mpc.delrx; 
@@ -270,17 +257,11 @@ int main(int argc, char* argv[]) {
                 }
                 catch (const LibraryException &ex) {
                     //std::cout << ex.what() << std::endl; 
-                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "r");
-                    if (PDBout){
-                        std::cout << "File " << ConfigOutFile+std::to_string(m)+".pdb" << " already exists!" << std::endl; 
-                    }  
-                    else {
-                        PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
-                        Sys.printPDB(PDBout, n, 1);
-                        fclose(PDBout);
-                    }
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
+                    Sys.printPDB(PDBout, n, 1);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
+                    fclose(PDBout);  
                     fclose(FluidFilePointer); 
                     if (!VelProfFile.empty()) {
                         std::ofstream VelProfFileStream{}; 
@@ -358,18 +339,12 @@ int main(int argc, char* argv[]) {
             {
                 if (SignalCaught) {
                     std::cout << "writing job data..." << std::endl; 
-                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "r");
-                    if (PDBout){
-                        std::cout << "File " << ConfigOutFile+std::to_string(m)+".pdb" << " already exists!" << std::endl; 
-                    }  
-                    else {
-                        PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
-                        Sys.printPDB(PDBout, n, 1);
-                        fclose(PDBout);
-                    }
-                    
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
+                    Sys.printPDB(PDBout, n, 1);
+                    fclose(PDBout);
                     FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
                     Mpc.printFluid(FluidFilePointer, Time); 
+                    fclose(PDBout);  
                     fclose(FluidFilePointer);  
                     if (!VelProfFile.empty()) {
                         std::ofstream VelProfFileStream{}; 
@@ -380,32 +355,15 @@ int main(int argc, char* argv[]) {
                     std::terminate(); 
                 }
                 if (m == *OutputStepsIt) {
-                    Sys.printStatistics(StatisticsStream, Time);
-                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "r");
-                    if (PDBout){
-                        std::cout << "File " << ConfigOutFile+std::to_string(m)+".pdb" << " already exists!" << std::endl; 
-                        SignalCaught = 666;
-                    }  
-                    else {
-                        PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
-                        Sys.printPDB(PDBout, n, 1);
-                        fclose(PDBout);
-                    } 
+                    Sys.printStatistics(StatisticsStream, Time); 
+                    PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
+                    Sys.printPDB(PDBout, n, 1); 
+                    fclose(PDBout);
                     if (m > 10000 && !VelProfFile.empty()) Mpc(VelProf); 
                     //Mpc(VelHist);  
                     std::cout << Time << " " << Sys.delrx <<  std::endl; 
                     OutputStepsIt++; 
                     
-                }
-                if (m % 1000000 == 0 ){
-                    FluidFilePointer = fopen(FluidFile.c_str(), "w"); 
-                    Mpc.printFluid(FluidFilePointer, m); 
-                    fclose(FluidFilePointer); 
-                    if (m > 10000 && !VelProfFile.empty()) {
-                        std::ofstream VelProfFileStream{}; 
-                        VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
-                        VelProf.print_result(VelProfFileStream); 
-                    }   
                 }
                 //if (m%1000==0) {
                     //if (!VelProfFile.empty()) Mpc(VelProf);     

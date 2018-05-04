@@ -1,4 +1,3 @@
-
 #ifndef LIB_VELOCITY_HIST_H_
 #define LIB_VELOCITY_HIST_H_
 

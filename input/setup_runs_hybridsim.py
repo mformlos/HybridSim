@@ -6,13 +6,17 @@ import shutil
 import subprocess 
 from collections import namedtuple 
 
+################################
+### THIS FILE IS DEPRECATED ####
+################################
+
 Parameter = namedtuple("Parameters", "Box, Shear, Temperature, MPCRho, MPCStep, MDStep, SimTime, EquilTime, SCNPNumber")
 
 Box = namedtuple("Box", ["Lx", "Ly", "Lz"])
 
 ParameterSets = []
 
-ParameterSets.append(Parameter(Box(50, 50, 50), [0.0002, 0.0005, 0.001, 0.002, 0.005], 1.0, 10, 0.1, 0.01, 8010000.0, 0.0,[i for i in range(50)]))
+ParameterSets.append(Parameter(Box(50, 50, 50), [0.01], 1.0, 10, 0.1, 0.001, 200000.0, 0.0,[18, 27]))
 #ParameterSets.append(Parameter(Box(50, 50, 50), [0.0, 0.00001, 0.00005, 0.0001], 1.0, 10, 0.1, 0.01, 8010000.0, 0.0,[i for i in range(50)]))
 #ParameterSets.append(Parameter(Box(50, 50, 50), [0.0], 1.0, 5, 0.1, 0.01, 1000.0, 0.0,[i for i in range(5)]))
 

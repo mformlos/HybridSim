@@ -3,8 +3,8 @@
 
 int main() {
     System sys_test(40,40,40, 0.0); 
-    std::vector<unsigned> OutputSteps; 
-    std::vector<unsigned>::iterator OutputStepsIt{};
+    std::vector<unsigned long long> OutputSteps; 
+    std::vector<unsigned long long>::iterator OutputStepsIt{};
     
     sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 5.0); 
     sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
@@ -85,7 +85,7 @@ int main() {
     ofstream gyr{"./results/NH-SCNP-0-stats.dat"}; 
 
     
-    for (unsigned i = 0; i < 10000000; i++) {
+    for (unsigned long long i = 0; i < 10000000; i++) {
         if (i == *OutputStepsIt) {
             sys_test.propagate(0.001, true); 
             sys_test.printStatistics(gyr, i*0.001);

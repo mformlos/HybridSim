@@ -5,17 +5,17 @@
 
 
 int main() {
-    System sys_test(50,50,200, 0.0, 2.0, true); 
-    std::vector<unsigned> OutputSteps; 
-    std::vector<unsigned>::iterator OutputStepsIt{};
-    unsigned TotalSteps {100000};
+    System sys_test(200,200,200, 0.0, 0.0, false, false); 
+    std::vector<unsigned long long> OutputSteps; 
+    std::vector<unsigned long long>::iterator OutputStepsIt{};
+    unsigned long long TotalSteps {100000000};
     
     
-    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-chain", 1.0); 
-    sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
-    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-config"); 
+    sys_test.addMolecules("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-PRECURSOR-chain", 1.0); 
+    //sys_test.addLinks("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-0-bonds"); 
+    sys_test.initializePositions("/home/formanek/HYBRIDSIM/input/SCNPs/SCNP-PRECURSOR-config"); 
     sys_test.initializeVelocitiesRandom(1.0); 
-    initializeStepVector(OutputSteps, "/home/formanek/HYBRIDSIM/input/teststeps"); 
+    initializeStepVector(OutputSteps, "/home/formanek/HYBRIDSIM/input/filetimeoutput"); 
     OutputStepsIt = OutputSteps.begin();    
     
     std::cout << "radius of gyration: " << sys_test.Molecules[0].radiusOfGyration() << std::endl; 
@@ -24,16 +24,9 @@ int main() {
     FILE* pdb {}; 
     pdb = fopen("pdb_equil_langevin.pdb", "w");
     
-    Vector3d NewCOM (20., 20., 100.); 
+    Vector3d NewCOM (100., 100., 100.); 
     sys_test.setMoleculeCOM(0, NewCOM);
      
-    double mindist{100.}; 
-    for (auto& mono : sys_test.Molecules[0].Monomers) {
-        if (mono.Position(2) < mindist) mindist = mono.Position(2);
-    } 
-    std::cout << "minimum distance to wall: " << mindist << std::endl; 
-    NewCOM(2) = NewCOM(2) - mindist + 1.3;
-    sys_test.setMoleculeCOM(0,NewCOM); 
    
     
       
@@ -52,7 +45,7 @@ int main() {
     bool force_set {false}; 
     Vector3d force(0.0, 0.0, 0.005);
     
-    for (unsigned i = 0; i < TotalSteps; i++) {
+    for (unsigned long long i = 0; i < TotalSteps; i++) {
         if (i == *OutputStepsIt) {
             sys_test.propagateLangevin(0.01, 1., 0.05, true); 
             //sys_test.propagate(0.001, true); 
@@ -65,7 +58,7 @@ int main() {
         }        
         else sys_test.propagateLangevin(0.01, 1., 0.05); //sys_test.propagate(0.001); //
 
-        if (!anchored && i > 15000) {
+        if (!anchored && i > 15000000000) {
             if (sys_test.Molecules[0].Monomers[0].Position(2) <= 1.05 && sys_test.Molecules[0].Monomers[0].Position(2) >= 0.9 ) {
                 Vector3d pos {sys_test.Molecules[0].Monomers[0].Position};
                 pos(2) = 0.0; 

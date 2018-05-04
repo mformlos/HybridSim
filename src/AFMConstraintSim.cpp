@@ -21,11 +21,11 @@ int main(int argc, char* argv[]) {
     unsigned long long TotalSteps{}, n {}, m {}; 
     double MDStep{}, SimTime{}, AnchorTime{}, EquilTime{}, Temperature{}, Time{}, SurfaceEStart{}, SurfaceEEquil {}, Gamma {};
     bool ParameterInitialized{}, AdsorptionOn{false}, Anchored {false}, AFMset {false}, Equilibrated{false}; 
-    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, ForceUpdateFile {}, ExtensionFile{}; 
+    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, StatisticsFile{}, ConfigOutFile{}, ConstraintUpdateFile {}, ExtensionForceFile{}; 
     std::vector<unsigned long long> OutputSteps; 
     std::vector<unsigned long long>::iterator OutputStepsIt{};
-    std::vector<ForceUpdate> ForceUpdates; 
-    std::vector<ForceUpdate>::iterator ForceUpdatesIt{}; 
+    std::vector<ConstraintUpdate> ConstraintUpdates; 
+    std::vector<ConstraintUpdate>::iterator ConstraintUpdatesIt{}; 
     
     
     if (argc != 2) {
@@ -81,9 +81,9 @@ int main(int argc, char* argv[]) {
     if (!ParameterInitialized) return EXIT_FAILURE;
     ConfigOutFile = extractParameter<std::string>("ConfigOutFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
-    ForceUpdateFile = extractParameter<std::string>("ForceUpdateFile", inputfile, ParameterInitialized);
+    ConstraintUpdateFile = extractParameter<std::string>("ConstraintUpdateFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
-    ExtensionFile = extractParameter<std::string>("ExtensionFile", inputfile, ParameterInitialized);
+    ExtensionForceFile = extractParameter<std::string>("ExtensionForceFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
     
     inputfile.close(); 
@@ -112,8 +112,8 @@ int main(int argc, char* argv[]) {
     std::cout << "MoleculeFile is " << MoleculeFile << std::endl;
     std::cout << "LinkFile is " << LinkFile << std::endl;
     std::cout << "ConfigFile is " << ConfigFile << std::endl;
-    std::cout << "ForceUpdateFile is " << ForceUpdateFile << std::endl;
-    std::cout << "ExtensionFile is " << ExtensionFile << std::endl;
+    std::cout << "ConstraintUpdateFile is " << ConstraintUpdateFile << std::endl;
+    std::cout << "ExtensionForceFile is " << ExtensionForceFile << std::endl;
     /////////////////////////////////////
     
     /////// SYSTEM INITIALIZATION ///////
@@ -174,15 +174,22 @@ int main(int argc, char* argv[]) {
     std::cout << "Output will be done " << OutputSteps.size() << " times. " << std::endl; 
     OutputStepsIt = OutputSteps.begin(); 
     
-    if (!initializeForceUpdateVector(ForceUpdates, ForceUpdateFile)) {
-        std::cout << "ForceUpdateFile does not exist!" << std::endl; 
+    /*double c {}; 
+    unsigned s {}; 
+    std::ifstream file (ConstraintUpdateFile, ios::in); 
+    file >> s >> c; 
+    std::cout << s << " " << c << std::endl; 
+    */
+    
+    if (!initializeConstraintUpdateVector(ConstraintUpdates, ConstraintUpdateFile)) {
+        std::cout << "ConstraintUpdateFile does not exist!" << std::endl; 
         return EXIT_FAILURE;     
     }
-    std::cout << "Force will be changed  " << ForceUpdates.size() << " times." << std::endl; 
-    ForceUpdatesIt = ForceUpdates.begin();
+    std::cout << "Constraint will be changed  " << ConstraintUpdates.size() << " times." << std::endl; 
+    ConstraintUpdatesIt = ConstraintUpdates.begin();
     
     std::ofstream StatisticsStream(StatisticsFile, ios::out | ios::trunc); 
-    std::ofstream ExtensionStream(ExtensionFile, ios::out | ios::trunc); 
+    std::ofstream ExtensionForceStream(ExtensionForceFile, ios::out | ios::trunc); 
     FILE* PDBout{}; 
     
     timeval start {}, end {};
@@ -227,20 +234,44 @@ int main(int argc, char* argv[]) {
                 Sys.SurfaceEnergy = SurfaceEEquil; 
                 Anchored = true; 
                 std::cout << "trying to set force " << std::endl; 
-                Sys.setDrive(ForceUpdatesIt -> Force, Sys.Molecules[0].NumberOfMonomers-1); 
+                double z {Sys.Molecules[0].Monomers.back().Position(2)}; 
+                double dif {100.};
+                for (auto& d : ConstraintUpdates) {
+                    if (abs(z - d.Constraint) < dif) {
+                        dif = abs(z - d.Constraint);  
+                        ConstraintUpdatesIt++; 
+                    }
+                    else break; 
+                }
+                m = ConstraintUpdatesIt -> Step;  
+                Time = (double)m*MDStep; 
+                for (OutputStepsIt = OutputSteps.begin(); OutputStepsIt != OutputSteps.end(); OutputStepsIt++) {
+                    if (m == *OutputStepsIt) {
+                        break;  
+                    }
+                }
+                
+                if ( OutputStepsIt == OutputSteps.end()-1) {
+                        std::cout << "could not reset output iterator" << std::endl; 
+                        return EXIT_FAILURE;
+                }
+                OutputStepsIt++; 
+                std::cout << "Particle at z = " << z << " will be constrained at z = " << ConstraintUpdatesIt -> Constraint << " and time is moved forward to t = " << Time << std::endl;
+                std::cout << "Next ouput at step " << *OutputStepsIt << std::endl; 
+                Sys.setConstraint(ConstraintUpdatesIt -> Constraint, Sys.Molecules[0].NumberOfMonomers-1); 
                 AFMset = true; 
                 Sys.calculateForcesBrute(true);
-                std::cout << "Chain anchored & starting force application " << std::endl;
-                ForceUpdatesIt++; 
-                m = 0;  
-                Time = 0.0; 
+                std::cout << "Chain anchored & starting constraint application " << std::endl;
+                ConstraintUpdatesIt++; 
             }
         }
         
-        if (AFMset && m == ForceUpdatesIt -> Step) {
-            Sys.changeDrive(ForceUpdatesIt -> Force, Sys.Molecules[0].NumberOfMonomers-1);
+        if (AFMset && m == ConstraintUpdatesIt -> Step) {
+            std::cout << "updating constraint" << std::endl; 
+            Sys.changeConstraint(ConstraintUpdatesIt -> Constraint, Sys.Molecules[0].NumberOfMonomers-1);
             Sys.calculateForcesBrute(true);
-            ForceUpdatesIt++; 
+            std::cout << "updated constraint" << std::endl; 
+            ConstraintUpdatesIt++; 
         } 
         
         
@@ -257,7 +288,7 @@ int main(int argc, char* argv[]) {
         
         if (m == *OutputStepsIt) {
             Sys.printStatistics(StatisticsStream, Time); 
-            Sys.printForceExtension(ExtensionStream, Time, 2); 
+            Sys.printExtensionForce(ExtensionForceStream, Time, 2); 
             PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "w");
             Sys.printPDB(PDBout, n, 1); 
             fclose(PDBout);

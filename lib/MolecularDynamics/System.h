@@ -27,6 +27,15 @@ struct Drive {
         DrivenParticle {driven} {}
 };
 
+struct Constraint {
+    double ConstraintPoint; 
+    MDParticle* ConstrainedParticle; 
+    
+    Constraint(double c, MDParticle* constrained) :
+        ConstraintPoint {c}, 
+        ConstrainedParticle {constrained} {}
+};
+
 
 class System {
 public: 
@@ -37,6 +46,7 @@ public:
     double Shear;
     double SurfaceEnergy; 
     bool Adsorption; 
+    bool PBC;
     
     std::array<unsigned,3> BoxSize; 
     std::array<unsigned,3> Cells; 
@@ -49,11 +59,13 @@ public:
     
     std::vector<Anchor> Anchors; 
     std::vector<Drive> Driven; 
+    std::vector<Constraint> Constraints; 
     
     
     
-    System(unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false); //initialize only boxsize and Shear; 
-    System(double, double, unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false); //initialize with cutoffs
+    
+    System(unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false, bool PBCon = true); //initialize only boxsize and Shear; 
+    System(double, double, unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false, bool PBCon = true); //initialize with cutoffs
     
     void updateVerletLists(); 
     void checkVerletLists(); 
@@ -67,11 +79,14 @@ public:
     bool addMolecules(std::string, double mass = 1.0); 
     bool addLinks(std::string);  
     bool initializePositions(std::string); 
+    bool initializeVelocities(std::string);
     void initializeVelocitiesRandom(double); 
     void setMoleculeCOM(unsigned, Vector3d); 
     void centerMolecule(unsigned); 
     bool setDrive(Vector3d, unsigned); 
     bool changeDrive(Vector3d, unsigned); 
+    bool setConstraint(double, unsigned); 
+    bool changeConstraint(double, unsigned); 
     void setAnchor(unsigned, Vector3d); 
     void setAnchorAuto(unsigned); 
     
@@ -92,6 +107,7 @@ public:
     void printPDB(FILE* pdb, int step, bool velocs = false); 
     void printStatistics(std::ofstream& os, double time); 
     void printForceExtension(std::ofstream& os, double time, unsigned dim); 
+    void printExtensionForce(std::ofstream& os, double time, unsigned dim); 
 };
 
 

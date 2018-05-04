@@ -2,6 +2,7 @@
 #define MOLECULE_H_
 
 #include "Particle.h"
+#include <fstream>
 
 class Molecule {
 public: 
@@ -21,6 +22,11 @@ public:
     void setLink(unsigned, unsigned); 
     void translate(Vector3d); 
     void removeAngularMomentum(); 
+    bool initializePositions(std::string); 
+    bool addLinks(std::string, unsigned);
+    
+    void calculateInternalForces(); 
+    void calculateSpringForces(); 
     
     //Property getter functions
     Vector3d centerOfMassPosition(); 
@@ -30,6 +36,8 @@ public:
     double radiusOfGyration(); 
     std::tuple<double, Matrix3d> GyrationTensor(); 
     Vector3d RotationFrequency(); 
+    Matrix3d StressTensor(); 
+    
     
     void printForces(FILE* f, int step); 
     

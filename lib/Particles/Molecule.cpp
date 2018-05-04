@@ -40,6 +40,51 @@ void Molecule::setLink(unsigned first, unsigned second) {
     Monomers[first].setBond(Monomers[second]); 
 }
 
+bool Molecule::initializePositions(std::string filename) {
+    std::ifstream file {filename};
+    if (!file.is_open()) return false; 
+    std::string dump; 
+    double x, y, z;  
+    unsigned count {0}; 
+    if (file.is_open()) {  
+        file >> dump >> dump; 
+        for (auto& mono : Monomers) {
+            if (file >> dump >> dump >> dump >> dump >> dump >> x >> y >> z >> dump >> dump >> dump) {
+                mono.Position(0) = x; 
+                mono.Position(1) = y; 
+                mono.Position(2) = z; 
+                count++; 
+             }
+             else {
+                std::cout << "only " << count << " monomers were initialized" << std::endl; 
+                return false; 
+             }
+        }
+    }
+    //std::cout << "all " << count << " monomers were initialized" << std::endl; 
+    if (file >> dump >> dump >> dump >> dump >> dump >> x >> y >> z >> dump >> dump >> dump) std::cout << "...but there is more data..." << std::endl; 
+    return true; 
+}
+
+bool Molecule::addLinks(std::string filename, unsigned molspecifier) {
+    std::ifstream file {filename};
+    if (!file.is_open()) return false; 
+    unsigned mol, bond1, bond2, numberOfLines, count;  
+    if (file.is_open()) {
+        file >> numberOfLines;
+        count = 0;
+        while (file >> mol >> bond1 >> bond2) {
+            if (mol == molspecifier){
+                setLink(bond1-1, bond2-1);
+                count++;  
+            }
+        }    
+    } 
+    std::cout << "set " << count << " out of " << numberOfLines << " links" << std::endl; 
+    return true; 
+}
+
+
 Vector3d Molecule::centerOfMassPosition() {
     Vector3d COMPos {Vector3d::Zero()}; 
     for (auto& mono : Monomers) {
@@ -149,4 +194,72 @@ void Molecule::printForces(FILE* f, int step) {
     fprintf(f, "\n"); 
 }
  
+
+void Molecule::calculateInternalForces() {
+    double force_abs {}; 
+    Vector3d force {}; 
+    for (auto& mono : Monomers) mono.Force = Vector3d::Zero(); 
+    
+    for (unsigned i = 0; i < NumberOfMonomers; i++) {
+        for (unsigned j = i+1; j < NumberOfMonomers; j++) {
+            Vector3d relPos;             
+            relPos = Monomers[j].Position - Monomers[i].Position; 
+            double radius2 {relPos.squaredNorm()}; 
+            force_abs = RLJ_Force(radius2); 
+            force = relPos*force_abs; 
+            Monomers[i].Force -= force; 
+            Monomers[j].Force += force;     
+        }
+        for (auto& bonded : Monomers[i].Bonds) {
+            Vector3d relPos;
+            relPos = bonded->Position - Monomers[i].Position;
+            double radius2 {relPos.squaredNorm()}; 
+            force_abs = FENE_Force(radius2); 
+            force = relPos*force_abs; 
+            Monomers[i].Force -= force; 
+            bonded -> Force += force; 
+        }
+    }
+}
+
+void Molecule::calculateSpringForces() {
+    double force_abs {}; 
+    Vector3d force {}; 
+    for (auto& mono : Monomers) mono.Force = Vector3d::Zero(); 
+    
+    for (unsigned i = 0; i < NumberOfMonomers; i++) {
+        for (auto& bonded : Monomers[i].Bonds) {
+            Vector3d relPos;
+            relPos = bonded->Position - Monomers[i].Position;
+            double radius2 {relPos.squaredNorm()}; 
+            force_abs = FENE_Force(radius2); 
+            force = relPos*force_abs; 
+            Monomers[i].Force -= force; 
+            bonded -> Force += force; 
+        }
+    }
+}
+
+
+Matrix3d Molecule::StressTensor() {
+    Vector3d COMPos; 
+    Vector3d RelPos;
+    Matrix3d Stress{Matrix3d::Zero()}; 
+    
+    COMPos = centerOfMassPosition(); 
+    for (auto& mono : Monomers) {
+        RelPos = mono.Position - COMPos; 
+        for (unsigned i = 0; i < 3; i++) {
+            for (unsigned j = 0; j < 3; j++) {
+                Stress(i, j) += RelPos(i)*mono.Force(j); 
+            }
+        }
+    }
+    
+    //Stress(1,0) = Stress(0,1); 
+    //Stress(2,0) = Stress(0,2); 
+    //Stress(2,1) = Stress(1,2); 
+    return Stress; 
+
+}
 

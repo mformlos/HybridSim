@@ -308,8 +308,8 @@ void MPC::initializeSoluteVector(unsigned N) {
     }
 } 
 
-void MPC::printFluid(FILE* file, double time) {
-    fprintf(file, "%14.6f \n", time); 
+void MPC::printFluid(FILE* file, unsigned long step) {
+    fprintf(file, "%14d \n", step); 
     for (auto& part : Fluid) {
         fprintf(file, "%7.3f %7.3f %7.3f %7.3f %7.3f %7.3f \n", part.Position(0), part.Position(1), part.Position(2), part.Velocity(0), part.Velocity(1), part.Velocity(2)); 
     }

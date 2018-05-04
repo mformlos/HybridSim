@@ -18,6 +18,7 @@ OutputStepFile = steps
 MoleculeFile = chain
 LinkFile = bonds
 ConfigFile = config
+VelocFile = veloc
 StatisticsFile = stats
 ConfigOutFile = configs/config
 VelProfFile = velprof

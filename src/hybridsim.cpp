@@ -6,7 +6,7 @@
 
 int main() {
 
-    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 100000, COMwrapInterval = 1000, MPCInterval;   
+    unsigned Lx = 40, Ly = 40, Lz = 40, Steps = 10000, COMwrapInterval = 1000, MPCInterval;   
     int tid, procs, maxt, inpar, dynamic, nested, nthreads;
     double StepSize = 0.01, StepSizeMPC = 0.1, Shear = 0.0;
     
@@ -47,6 +47,7 @@ int main() {
     
     #pragma omp parallel private(tid)
     {
+        #ifdef _OPENMP
         tid = omp_get_thread_num(); 
         if (tid == 0) {
             printf("Thread %d getting environment info...\n", tid);
@@ -67,6 +68,7 @@ int main() {
             printf("Dynamic threads enabled? = %d\n", dynamic);
             printf("Nested parallelism enabled? = %d\n", nested);
         }
+        #endif
         Rand::seed(tid);
         Rand::warmup(10000); 
         

@@ -8,10 +8,10 @@
 
 int main() {
     Particle test_part; 
-    unsigned Steps = 10000; 
+    unsigned Steps = 500; 
   
     int tid, proc_num; 
-    unsigned Lx = 20, Ly = 20, Lz = 20; 
+    unsigned Lx = 100, Ly = 100, Lz = 100; 
     
     System sys_test(Lx,Ly,Lz, 0.0); 
     
@@ -70,11 +70,13 @@ int main() {
     }*/
     #pragma omp parallel private(tid)
     {
+        #ifdef _OPENMP
         tid = omp_get_thread_num(); 
         if (tid == 0) {
             proc_num = omp_get_num_procs();
             std::cout << "You are using " << proc_num << " processes. " << std::endl;  
         }
+        #endif
         std::cout << "Hello from process: " << tid << std::endl;
         Rand::seed(tid);
         Rand::warmup(10000); 
@@ -139,7 +141,7 @@ int main() {
             #pragma omp single
             {
                 test_mpc.returnSolute(sys_test.Molecules);
-                if(n%10==0) {
+                if(n%50==0) {
                     double temp = test_mpc.virtualTemperature();
                     std::cout << "Step: " << n << " Temperature: " << temp << std::endl;
                     temp_file << n << " " << temp << std::endl; 

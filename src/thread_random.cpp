@@ -11,8 +11,8 @@ double real_uniform(std::mt19937_64& engine) {
     uniform_real_distribution<double> dis; 
     return dis(engine); 
 } 
-extern std::mt19937_64 my_engine; 
-#pragma omp threadprivate(my_engine)
+//extern std::mt19937_64 my_engine; 
+//#pragma omp threadprivate(my_engine)
 
 int main() {
 
@@ -37,10 +37,11 @@ int main() {
 
     #pragma omp parallel private(tid)
     { 
-
+    #ifdef _OPENMP
     tid = omp_get_thread_num(); 
-    std::mt19937_64 my_engine(1); 
-    my_engine.seed(tid); 
+    #endif
+    //std::mt19937_64 my_engine(1); 
+    //my_engine.seed(tid); 
     /*std::minstd_rand0 lc_generator(tid);
     std::uint_least32_t seed_data[std::mt19937::state_size]; 
     std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator)); 

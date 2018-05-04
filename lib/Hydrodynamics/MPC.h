@@ -90,7 +90,7 @@ public:
     }
      
     
-    void printFluid(FILE*, double); 
+    void printFluid(FILE*, unsigned long); 
 
 
 }; 

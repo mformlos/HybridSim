@@ -4,9 +4,9 @@ import os
 import random
 import shutil
 
-ForceUpdateInterval = 5000000
-ForceIncrement = 0.005
-ForceMax = 0.1
+ForceUpdateInterval = 10000000
+ForceIncrement = 0.01
+ForceMax = 5.0
 Force = 0.0
 
 StepInterval = 0
