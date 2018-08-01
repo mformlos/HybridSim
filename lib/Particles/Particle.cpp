@@ -63,4 +63,16 @@ MDParticle::MDParticle(int Index, Vector3d aPosition, Vector3d aVelocity, double
 void MDParticle::setBond(MDParticle& bonded) {
     Bonds.push_front(&bonded); 
 }
+
+BiMDParticle::BiMDParticle(int Index, bool f) : 
+    MDParticle(Index), 
+    Functional(f) { }
+    
+BiMDParticle::BiMDParticle(int Index, double aMass, bool f) : 
+    MDParticle(Index, aMass), 
+    Functional(f) { }
+    
+BiMDParticle::BiMDParticle(int Index, Vector3d aPosition, Vector3d aVelocity, double aMass, bool f) : 
+    MDParticle(Index, aPosition, aVelocity, aMass), 
+    Functional(f) { }
     

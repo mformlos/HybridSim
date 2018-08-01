@@ -1,12 +1,17 @@
+#include <../Eigen/Eigen/Dense>
+#include <sstream>
+
+using namespace Eigen; 
+
 template <typename Type>
 Type extractParameter(std::string key, std::ifstream& inputfile, bool& found) {
     inputfile.clear(); 
-    inputfile.seekg(0, ios::beg);
+    inputfile.seekg(0, std::ios::beg);
     std::string line{}, fkey{}, equal{};
     Type param {};   
     found = false; 
     while (getline(inputfile, line)){
-        if (line.find(key) != string::npos) {
+        if (line.find(key) != std::string::npos) {
             std::istringstream iss(line); 
             if (iss >> fkey >> equal >> param) {
                 found = true; 
@@ -19,7 +24,7 @@ Type extractParameter(std::string key, std::ifstream& inputfile, bool& found) {
 }
 
 bool initializeStepVector(std::vector<unsigned long long>& vec, std::string filename) {
-    std::ifstream file (filename, ios::in); 
+    std::ifstream file (filename, std::ios::in); 
     if (!file.is_open()) {
         return false; 
     }
@@ -47,7 +52,7 @@ struct ConstraintUpdate {
 }; 
 
 bool initializeForceUpdateVector(std::vector<ForceUpdate>& vec, std::string filename) {
-    std::ifstream file (filename, ios::in); 
+    std::ifstream file (filename, std::ios::in); 
     if (!file.is_open()) {
         return false; 
     }
@@ -61,7 +66,7 @@ bool initializeForceUpdateVector(std::vector<ForceUpdate>& vec, std::string file
 } 
 
 bool initializeConstraintUpdateVector(std::vector<ConstraintUpdate>& vec, std::string filename) {
-    std::ifstream file (filename, ios::in); 
+    std::ifstream file (filename, std::ios::in); 
     if (!file.is_open()) {
         return false; 
     }

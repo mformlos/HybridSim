@@ -40,6 +40,8 @@ add_executable(rgyr_corr rgyr_corr.cpp)
 
 add_executable(rgyr_corr_multiple rgyr_corr_multiple.cpp)
 
+add_executable(rgyr_corr_multiple_stepfile rgyr_corr_multiple_stepfile.cpp)
+
 add_executable(evec_corr evec_corr.cpp)
 
 add_executable(stress_tensor stress_tensor.cpp)

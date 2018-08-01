@@ -56,6 +56,19 @@ public:
     
     void setBond(MDParticle&);
 }; 
+
+class BiMDParticle : public MDParticle {
+    //Members:
+    bool Functional; 
+    
+    //Constructors:
+    BiMDParticle(int, bool f = false);  //Initialize everything to 0 except mass and Functional; 
+    BiMDParticle(int, double, bool f = false);
+    BiMDParticle(int, Vector3d, Vector3d, double, bool f = false);  //Initialize Position and Velocity; 
+    ~BiMDParticle() = default; 
+    
+    
+}; 
 #endif
 
 
