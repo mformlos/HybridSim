@@ -67,8 +67,11 @@ public:
     System(unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false, bool PBCon = true); //initialize only boxsize and Shear; 
     System(double, double, unsigned, unsigned, unsigned, double, double SurfE = 1.0, bool AdsorptionOn = false, bool PBCon = true); //initialize with cutoffs
     
+    
     void updateVerletLists(); 
     void checkVerletLists(); 
+    void updateCellLists(); 
+    
     
     void calculateForces(bool calcEpot=false); 
     void calculateForcesBrute(bool calcEpot=false); 

@@ -13,7 +13,7 @@ int main() {
     MPCInterval = (unsigned)(StepSizeMPC/StepSize); 
     std::cout << "MPC every " << MPCInterval << " steps" << std::endl; 
     
-    System sys(Lx,Ly,Lz, Shear); 
+    System sys(1.2, 1.5, Lx,Ly,Lz, Shear, 0.0, false, true); 
     MPC mpc(Lx, Ly, Lz, 5, 1.0, Shear);
     VelocityProfile vel_prof{0.2}; 
 

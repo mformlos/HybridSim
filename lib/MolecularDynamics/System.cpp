@@ -1,9 +1,9 @@
 #include "System.h"
 
 System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energy, bool AdsorptionOn, bool PBCon) : 
-    Cutoff {1.5}, 
-    VerletRadius {2.0}, 
-    VerletRadiusSq {4.0},
+    Cutoff {1.2}, 
+    VerletRadius {1.5}, 
+    VerletRadiusSq {2.25},
     delrx {0.0}, 
     Shear {gamma},
     SurfaceEnergy {energy},
@@ -311,44 +311,6 @@ void System::calculateForcesBrute(bool calcEpot) {
         anch.AnchoredParticle -> Force -= force;   
     } 
 }
-            
-
-
-
-
-/* bool System::addMolecules(std::string filename, double mass) {
-    std::ifstream file(filename, ios::in);
-    if (!file.is_open()) return false; 
-    std::string line; 
-    unsigned current_mol, mol, bond1, bond2, monos, numberOfLines, mono_count;   
-    current_mol = 1; 
-    monos = 0; 
-    mono_count = 0; 
-    if (file.is_open()) {
-        std::cout << "file " << filename << " successfully opened" << std::endl; 
-        file >> numberOfLines; 
-        if (numberOfLines == 0) {
-            std::cout << "no molecules in the system" << std::endl; 
-            return true; 
-        }
-        while (file >> mol >> bond1 >> bond2) {
-            if (mol != current_mol) {
-                mono_count += monos;
-                Molecules.push_back(Molecule(monos, mass, mono_count)); 
-                Molecules[mol-2].setChainBonds(); 
-                current_mol = mol;               
-            }
-            monos = bond2; 
-        }
-    }
-    Molecules.push_back(Molecule(monos, mass)); 
-    Molecules[mol-1].setChainBonds(); 
-    current_mol = mol;     
-    std::cout << "initialized " << Molecules.size() << " molecules" << std::endl;
-    
-    
-    return true; 
-} */
 
 
 bool System::addMolecules(std::string filename, double mass) {
