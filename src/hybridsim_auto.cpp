@@ -145,6 +145,7 @@ int main(int argc, char* argv[]) {
  
     if (VelocFile == "RANDOM") {
         Sys.initializeVelocitiesRandom(Temperature); 
+        std::cout << "velocities set randomly" << std::endl; 
     }
     else {
         if (!Sys.initializeVelocities(VelocFile)) {
@@ -155,8 +156,8 @@ int main(int argc, char* argv[]) {
     //Vector3d newCOM(10., 18.,10.);
     if (Sys.NumberOfMolecules() == 1)  Sys.centerMolecule(0); //Sys.setMoleculeCOM(0,newCOM); 
     else if (Sys.NumberOfMolecules() > 1){
-        std::cout << "Code can not handle " << Sys.NumberOfMolecules() << " yet. Please use only 1 Molecule" << std::endl; 
-        return EXIT_FAILURE;  
+        Sys.wrapMoleculesCOM(); 
+        std::cout << "Molecules' centers of mass set inside box." << std::endl; 
     }
     
     

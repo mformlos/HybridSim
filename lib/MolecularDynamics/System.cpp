@@ -212,7 +212,10 @@ void System::calculateForcesBrute(bool calcEpot) {
         for (auto& mono : mol.Monomers) mono.Force = Vector3d::Zero(); 
         if (calcEpot) mol.Epot = 0.0;    
     }
-    for (auto& mol : Molecules) {
+    /// loop over all molecules
+    for (unsigned molm = 0; molm < Molecules.size(); molm++) {
+        Molecule& mol {Molecules[molm]};  
+        /// intermolecular interactions
         for (unsigned i = 0; i < mol.NumberOfMonomers; i++) {
             for (unsigned j = i+1; j < mol.NumberOfMonomers; j++) {
                 Vector3d relPos;             
@@ -259,6 +262,33 @@ void System::calculateForcesBrute(bool calcEpot) {
                 mol.Monomers[i].Force(2) += mol.Monomers[i].Position(2)*force_abs; 
             }         
         }
+        /// loop over other molecules with higher index
+        for (unsigned moln = molm + 1; moln < Molecules.size(); moln++) {
+            Molecule& other {Molecules[moln]}; 
+            for (unsigned i = 0; i < mol.NumberOfMonomers; i++) {
+                for (unsigned j = 0; j < other.NumberOfMonomers; j++) { 
+                    Vector3d relPos;             
+                    if (PBC) relPos = relative(mol.Monomers[i], other.Monomers[j], BoxSize, delrx);
+                    else relPos = other.Monomers[j].Position - mol.Monomers[i].Position; 
+                    double radius2 {relPos.squaredNorm()}; 
+                    if (calcEpot) {
+                        double pot {0.5*RLJ_Potential(radius2)};
+                        mol.Epot += pot; 
+                        other.Epot += pot;
+                    }
+                    force_abs = RLJ_Force(radius2); 
+                    if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                        MDParticle* mono {&mol.Monomers[i]}; 
+                        MDParticle* othermono {&other.Monomers[j]};  
+                        throw(RLJException(mono -> Identifier, mono -> Position, mono -> Velocity, othermono -> Identifier, othermono -> Position, othermono -> Velocity, force_abs)); 
+                    }
+                    //std::cout << i << " " << j << " " << force_abs << std::endl;
+                    force = relPos*force_abs; 
+                    mol.Monomers[i].Force -= force; 
+                    other.Monomers[j].Force += force;   
+                }
+            }
+        }
     }
     
     for (auto& drivepair : Driven) {
@@ -286,7 +316,7 @@ void System::calculateForcesBrute(bool calcEpot) {
 
 
 
-bool System::addMolecules(std::string filename, double mass) {
+/* bool System::addMolecules(std::string filename, double mass) {
     std::ifstream file(filename, ios::in);
     if (!file.is_open()) return false; 
     std::string line; 
@@ -316,15 +346,35 @@ bool System::addMolecules(std::string filename, double mass) {
     current_mol = mol;     
     std::cout << "initialized " << Molecules.size() << " molecules" << std::endl;
     
-    /*for (auto& mol : Molecules) {
-        for (auto& mono : mol.Monomers) {
-            std::cout << mono.Identifier << " "; 
-        }
-        std::cout << std::endl; 
-    }*/
     
     return true; 
+} */
+
+
+bool System::addMolecules(std::string filename, double mass) {
+    std::ifstream file(filename, ios::in);
+    if (!file.is_open()) return false;
+    std::string line;
+    unsigned current_mol{0}, mol, monos, mono_start{0};
+
+    if (file.is_open()) {
+        std::cout << "file " << filename << " successfully opened" << std::endl;
+        while (file >> mol >> monos) {
+        	if (mol != current_mol) {
+        		std::cout << "order of molecules is wrong" << std::endl;
+        		return false;
+        	}
+        	Molecules.push_back(Molecule(monos, mass, mono_start));
+        	Molecules[mol].setChainBonds();
+            mono_start += monos;
+            current_mol++;
+        }
+    }
+    std::cout << "initialized " << Molecules.size() << " molecules with a total of " << mono_start << " monomers." << std::endl;
+
+    return true;
 }
+
 
 bool System::addLinks(std::string filename) {
     std::ifstream file {filename};
