@@ -88,8 +88,10 @@ public:
 	}
 
 	double value() {return 1.0; }
+	
 	std::ostream& print_result(std::ostream& os) {
 		bool out {true};
+		if (vel_x_average.empty()) return os; 
 		do {
 			os.precision(8);
 			os << std::scientific;

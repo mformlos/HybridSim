@@ -45,6 +45,7 @@ public:
     double delrx; 
     double Shear;
     double SurfaceEnergy; 
+    double Epot;
     bool Adsorption; 
     bool PBC;
     
@@ -53,6 +54,7 @@ public:
     std::array<double,3> CellSideLength; 
     
     std::vector<std::vector<std::vector<std::forward_list<MDParticle*>>>> CellList; 
+    std::array<std::array<int,3>,16> NeighbourDirections; 
     
     std::vector<Molecule> Molecules; 
     
@@ -73,7 +75,8 @@ public:
     void updateCellLists(); 
     
     
-    void calculateForces(bool calcEpot=false); 
+    void calculateForcesVerlet(bool calcEpot=false); 
+    void calculateForcesCellList(bool calcEpot=false); 
     void calculateForcesBrute(bool calcEpot=false); 
     
     void wrapMoleculesCOM(); 
@@ -92,6 +95,7 @@ public:
     bool changeConstraint(double, unsigned); 
     void setAnchor(unsigned, Vector3d); 
     void setAnchorAuto(unsigned); 
+    bool setNeighbourDirections(std::string); 
     
     void propagate(double dt, bool calcEpot=false); 
     void propagateLangevin(double dt, double Temperature, double gamma=0.05, bool calcEpot=false); 

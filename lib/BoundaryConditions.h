@@ -28,7 +28,6 @@ inline Vector3d image(const Particle& part, const std::array<unsigned, 3>& BoxSi
     pos(0) -= BoxSize[0]*floor(pos(0)/BoxSize[0]); 
     pos(1) = part.Position(1) - BoxSize[1]*cy; 
     pos(2) = part.Position(2) - BoxSize[2]*floor(part.Position(2)/BoxSize[2]); 
-    //part.Velocity(0) -= cy*Shear*BoxSize[1]; 
     return pos; 
 }
 

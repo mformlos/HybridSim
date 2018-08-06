@@ -7,14 +7,19 @@ System::System(unsigned Lx, unsigned Ly, unsigned Lz, double gamma, double energ
     delrx {0.0}, 
     Shear {gamma},
     SurfaceEnergy {energy},
+    Epot{0.0},
     Adsorption {AdsorptionOn},
-    PBC{PBCon} {
+    PBC{PBCon}
+     {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
-        Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
+        /*Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
         Cells[1] = unsigned(BoxSize[1]/(sqrt(2)*VerletRadius)); 
-        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));     
+        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));*/   
+        Cells[0] = (unsigned)(BoxSize[0]/Cutoff); 
+        Cells[1] = (unsigned)(BoxSize[1]/Cutoff); 
+        Cells[2] = (unsigned)(BoxSize[2]/Cutoff);    
         CellSideLength[0] = BoxSize[0]/(double)Cells[0]; 
         CellSideLength[1] = BoxSize[1]/(double)Cells[1];
         CellSideLength[2] = BoxSize[2]/(double)Cells[2];
@@ -29,20 +34,44 @@ System::System(double aCutoff, double aVerletRadius, unsigned Lx, unsigned Ly, u
     delrx {0.0}, 
     Shear {gamma},
     SurfaceEnergy {energy},
+    Epot{0.0},
     Adsorption {AdsorptionOn},
     PBC {PBCon} {
         BoxSize[0] = Lx; 
         BoxSize[1] = Ly; 
         BoxSize[2] = Lz;
-        Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
+        /*Cells[0] = unsigned(BoxSize[0]/(sqrt(2)*VerletRadius)); 
         Cells[1] = unsigned(BoxSize[1]/(sqrt(2)*VerletRadius)); 
-        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));      
+        Cells[2] = unsigned(BoxSize[2]/(sqrt(2)*VerletRadius));*/
+        Cells[0] = unsigned(BoxSize[0]/Cutoff); 
+        Cells[1] = unsigned(BoxSize[1]/Cutoff); 
+        Cells[2] = unsigned(BoxSize[2]/Cutoff);     
         CellSideLength[0] = BoxSize[0]/(double)Cells[0]; 
         CellSideLength[1] = BoxSize[1]/(double)Cells[1];
         CellSideLength[2] = BoxSize[2]/(double)Cells[2];
         CellList = std::vector<std::vector<std::vector<std::forward_list<MDParticle*>>>>(Cells[0], std::vector<std::vector<std::forward_list<MDParticle*>>>(Cells[1], std::vector<std::forward_list<MDParticle*>>(Cells[2], std::forward_list<MDParticle*>()))); 
     }
         
+bool System::setNeighbourDirections(std::string filename) {
+    std::ifstream file (filename, std::ios::in); 
+    if (!file.is_open()) {
+        return false; 
+    }
+    int x {}, y {}, z{}; 
+    unsigned n {0};
+    while(file >> x >> y >> z) {
+        std::cout << x << " "<< y << " " << z << std::endl; 
+        NeighbourDirections[n][0] = x; 
+        NeighbourDirections[n][1] = y;
+        NeighbourDirections[n][2] = z;
+        n++; 
+    }
+    if (n != 16) {
+        std::cout << n << " instead of 16 neighbour directions supplied!" << std::endl; 
+        return false; 
+    }
+    return true; 
+}
 
 void System::updateVerletLists() {
     //std::cout << "rebuilding Verlet list... " << std::endl;  
@@ -114,6 +143,35 @@ void System::updateVerletLists() {
     }
 }    
 
+void System::updateCellLists() {
+    std::array<int, 3> CellNumber{}; 
+    for (auto& sheet : CellList) {
+        for (auto& row : sheet) {
+            for (auto& list : row) {
+                list.clear(); 
+            }    
+        }
+    }
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) {
+            Vector3d imPos; 
+            if (PBC) imPos = image(mono, BoxSize, delrx);
+            else imPos = mono.Position; 
+            for (unsigned i = 0; i < 3; i++) {
+                CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
+            }
+            try {
+                CellList[CellNumber[0]][CellNumber[1]][CellNumber[2]].push_front(&mono); 
+            }
+            catch (std::exception& e) {
+                throw CellAllocationException(mono, CellNumber);  
+            }
+        }
+    }
+
+}
+
+
 void System::checkVerletLists() {
     Vector3d displacement {Vector3d::Zero()}; 
     for (auto& mol : Molecules) {
@@ -127,7 +185,7 @@ void System::checkVerletLists() {
     }
 }
 
-void System::calculateForces(bool calcEpot) {
+void System::calculateForcesVerlet(bool calcEpot) {
     //unsigned count_bonds {0}; 
     double force_abs {}; 
     Vector3d force {}; 
@@ -204,6 +262,160 @@ void System::calculateForces(bool calcEpot) {
         anch.AnchoredParticle -> Force -= force;   
     }    
 }
+
+void System::calculateForcesCellList(bool calcEpot) {
+    int xbox_displacement{(unsigned)(delrx/CellSideLength[0])};
+    double force_abs {}; 
+    Vector3d force {}; 
+    Vector3d relPos;
+    for (auto& mol : Molecules) {
+        for (auto& mono : mol.Monomers) mono.Force = Vector3d::Zero(); 
+        if (calcEpot) Epot = 0.0;    
+    }
+    //loop over all cells 
+    for (int i = 0; i < Cells[0]; i++) {
+        for (int j = 0; j < Cells[1]; j++) {
+            for (int k = 0; k < Cells[2]; k++) {
+                //std::cout << "Current Cell: " << i << " " << j << " " << k << std::endl; 
+                ///loop over all monomers in this cell
+                
+                for (auto first_it = CellList[i][j][k].begin(); first_it != CellList[i][j][k].end(); first_it++) {
+                    MDParticle* first = *first_it;
+                    //std::vector<int> Neighbours {}; 
+                    
+                    //std::cout << "first: " << first -> Identifier << std::endl; 
+                    /// loop over all further monomers in this cell
+                    if (first_it !=  CellList[i][j][k].end()) {
+                        for (auto second_it = std::next(first_it,1); second_it != CellList[i][j][k].end(); second_it++){
+                            MDParticle* second = *second_it;  
+                            //std::cout << "second: " << second -> Identifier << std::endl; 
+                            if (PBC) relPos = relative(*first, *second, BoxSize, delrx); 
+                            else relPos = second -> Position - first -> Position;  
+                            double radius2 {relPos.squaredNorm()};
+                            if (calcEpot) {
+                                Epot += RLJ_Potential(radius2);
+
+                            }
+                            force_abs = RLJ_Force(radius2); 
+                            if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
+                            }
+                            //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
+                            force = relPos*force_abs; 
+                            first -> Force -= force;  
+                            second -> Force += force; 
+                        }
+                    }    
+                    ////loop over all neighbors 
+                    int l{}, m{}, n{}; 
+                    /// all except the top layer boxes 
+                    if (j != Cells[1] - 1) {  
+                        for (unsigned dir = 0; dir < 13; dir++) {
+                            
+                            l = i + NeighbourDirections[dir][0];
+                            m = j + NeighbourDirections[dir][1];
+                            n = k + NeighbourDirections[dir][2];
+                            l -= floor((double)l/Cells[0])*Cells[0]; 
+                            m -= floor((double)m/Cells[1])*Cells[1];
+                            n -= floor((double)n/Cells[2])*Cells[2];
+                            //std::cout << "Middle Cell: " << l << " " << m << " " << n << std::endl; 
+                            //l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
+                            /// loop over all monomers in this neighbouring cell
+                            for (auto& second : CellList[l][m][n]) {
+                                //std::cout << "second: " << second -> Identifier << std::endl; 
+                                if (PBC) relPos = relative(*first, *second, BoxSize, delrx); 
+                                else relPos = second -> Position - first -> Position;  
+                                double radius2 {relPos.squaredNorm()};
+                                if (calcEpot) {
+                                    Epot += RLJ_Potential(radius2);
+
+                                }
+                                force_abs = RLJ_Force(radius2); 
+                                //std::cout << force_abs << std::endl;    
+                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                    throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
+                                }
+                                //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
+                                force = relPos*force_abs; 
+                                first -> Force -= force;  
+                                second -> Force += force; 
+                            }
+                        }
+                    }
+                    /// for the top layer boxes
+                    else { 
+                        //std::cout << "Current Cell: " << i << " " << j << " " << k << " delrx: " << delrx << " displ: " << xbox_displacement << std::endl;
+                       
+                        for (unsigned dir = 0; dir < 16; dir++) {
+                            
+                            l = i + NeighbourDirections[dir][0];
+                            m = j + NeighbourDirections[dir][1];
+                            n = k + NeighbourDirections[dir][2];
+                            
+                            if (NeighbourDirections[dir][1] == 1) {
+                                l -= xbox_displacement;     
+                            }
+                            
+                            l -= floor((double)l/Cells[0])*Cells[0]; 
+                            m -= floor((double)m/Cells[1])*Cells[1];
+                            n -= floor((double)n/Cells[2])*Cells[2];
+                            
+                            //std::cout << "Top Cell: " << l << " " << m << " " << n << std::endl; 
+                            //l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
+                            /// loop over all monomers in this neighbouring cell
+                            for (auto& second : CellList[l][m][n]) {
+                                //std::cout << "second: " << second -> Identifier << std::endl;
+                                if (PBC) relPos = relative(*first, *second, BoxSize, delrx); 
+                                else relPos = second -> Position - first -> Position;  
+                                double radius2 {relPos.squaredNorm()};
+                                if (calcEpot) {
+                                    Epot += RLJ_Potential(radius2);
+
+                                }
+                                force_abs = RLJ_Force(radius2); 
+                                //std::cout << force_abs << std::endl; 
+                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                    throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
+                                }
+                                //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
+                                force = relPos*force_abs; 
+                                first -> Force -= force;  
+                                second -> Force += force; 
+                            }
+                        }    
+                    
+                    }
+                    /// calculation of FENE etc. 
+                    for (auto& bonded : first -> Bonds) {
+                        Vector3d relPos;
+                        if (PBC) relPos = relative(*first, *bonded, BoxSize, delrx); 
+                        else relPos = bonded -> Position - first -> Position;  
+                        double radius2 {relPos.squaredNorm()}; 
+                        if (calcEpot) {
+                            Epot += FENE_Potential(radius2);
+                        }    
+                        force_abs = FENE_Force(radius2); 
+                        if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                            throw(FENEException(first -> Identifier, bonded->Identifier, force_abs)); 
+                        }
+                        force = relPos*force_abs; 
+                        first -> Force -= force; 
+                        bonded -> Force += force; 
+                    }
+                    /*if (first -> Identifier == 18 || first -> Identifier == 19 ) {
+                        std::cout << "Particle " << first -> Identifier << "'s position: " << first -> Position << std::endl; 
+                        std::cout << "cell: " << i << " " << j << " " << k << std::endl; 
+                        std::cout << "neighbours: " << std::endl; 
+                        for(auto& neigh : Neighbours) std::cout << neigh << " "; 
+                        std::cout << std::endl; 
+                    }*/
+                }   
+            }
+        }
+    }
+    
+}
+
 
 void System::calculateForcesBrute(bool calcEpot) {
     double force_abs {}; 
@@ -557,12 +769,14 @@ void System::propagate(double dt, bool calcEpot) {
             //TODO: boundary 
         }
     }
+    updateCellLists();
+    calculateForcesCellList(calcEpot);
     //checkVerletLists(); 
     //calculateForces(calcEpot); 
     /*if (SMD) {
         SMDdrivingParticle.Position += SMDdrivingParticle.Velocity*dt;
     }*/
-    calculateForcesBrute(calcEpot); 
+    //calculateForcesBrute(calcEpot); 
     
     for (auto& mol : Molecules) {
         for (auto& mono : mol.Monomers) {
@@ -722,7 +936,7 @@ void System::printPDB(FILE* pdb, int step, bool velocs) {
 }
 
 void System::printStatistics(std::ofstream& os, double time) {
-    double Ekin {KineticEnergy()}, Epot {PotentialEnergy()}; 
+    double Ekin {KineticEnergy()}; 
     Vector3d Omega {RotationFrequency()}; 
     std::tuple<double, Matrix3d> GyrTuple {GyrationTensor()};
     Matrix3d GyrTensor {std::get<1>(GyrTuple)}; 

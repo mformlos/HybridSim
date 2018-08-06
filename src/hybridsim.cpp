@@ -28,7 +28,7 @@ int main() {
     
     
     sys.updateVerletLists(); 
-    sys.calculateForces(); 
+    sys.calculateForcesVerlet(); 
     
     mpc.initializeRandom();  
     mpc.initializeSoluteVector(sys.NumberOfParticles()); 

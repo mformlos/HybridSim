@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
     double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, SimTime{}, Temperature{}, Time{};
     bool ParameterInitialized{}; 
-    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, VelocFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}, FluidInput{}; 
+    std::string OutputStepFile{}, MoleculeFile{}, LinkFile{}, ConfigFile{}, VelocFile{}, StatisticsFile{}, ConfigOutFile{}, VelProfFile{}, FluidFile{}, FluidInput{}, NeighbourCellFile{}; 
     std::vector<unsigned long long> OutputSteps; 
     std::vector<unsigned long long>::iterator OutputStepsIt{};
     
@@ -84,7 +84,9 @@ int main(int argc, char* argv[]) {
     FluidInput = extractParameter<std::string>("FluidInput", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
     VelProfFile = extractParameter<std::string>("VelProfFile", inputfile, ParameterInitialized);
-    
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    NeighbourCellFile = extractParameter<std::string>("NeighbourCellFile", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
     
     inputfile.close(); 
     TotalTime = EquilTime + SimTime;
@@ -122,11 +124,19 @@ int main(int argc, char* argv[]) {
     std::cout << "FluidFile is " << FluidFile << std::endl;
     std::cout << "FluidInput is " << FluidInput << std::endl;
     std::cout << "VelProfFile is " << VelProfFile << std::endl;
+    std::cout << "NeighbourCellFile is " << NeighbourCellFile << std::endl;
     
     /////////////////////////////////////
     
     /////// SYSTEM INITIALIZATION ///////
-    System Sys(Lx, Ly, Lz, Shear); 
+    System Sys(1.2, 1.5, Lx, Ly, Lz, Shear, 0.0, false, true); 
+    
+    std::cout << "Neighbourcells in each direction: " << Sys.Cells[0] << " " <<  Sys.Cells[1] << " " << Sys.Cells[2] << std::endl; 
+    std::cout << "Cell side lengths: " << Sys.CellSideLength[0] << " " <<  Sys.CellSideLength[1] << " " << Sys.CellSideLength[2] << std::endl;
+    
+    if (!Sys.setNeighbourDirections(NeighbourCellFile)){
+        return EXIT_FAILURE;
+    }
     
     if (!Sys.addMolecules(MoleculeFile, (double)MPCRho)) {
         std::cout << "MoleculeFile does not exist!" << std::endl; 
@@ -162,9 +172,11 @@ int main(int argc, char* argv[]) {
     
     
     try {
+        Sys.updateCellLists();
+        Sys.calculateForcesCellList();
         //Sys.updateVerletLists(); 
         //Sys.calculateForces();
-        Sys.calculateForcesBrute(); 
+        //Sys.calculateForcesBrute(); 
     }
     catch (const LibraryException &ex) {
         std::cout << ex.what() << std::endl; 
@@ -270,7 +282,7 @@ int main(int argc, char* argv[]) {
                     else Sys.propagate(MDStep);
                 }
                 catch (const LibraryException &ex) {
-                    //std::cout << ex.what() << std::endl; 
+                    std::cout << ex.what() << std::endl; 
                     PDBout = fopen((ConfigOutFile+std::to_string(m)+".pdb").c_str(), "r");
                     if (PDBout){
                         std::cout << "File " << ConfigOutFile+std::to_string(m)+".pdb" << " already exists!" << std::endl; 
@@ -285,8 +297,8 @@ int main(int argc, char* argv[]) {
                     fclose(FluidFilePointer); 
                     if (!VelProfFile.empty()) {
                         std::ofstream VelProfFileStream{}; 
-                        VelProfFileStream.open(VelProfFile, ios::out | ios::trunc); 
-                        VelProf.print_result(VelProfFileStream); 
+                        VelProfFileStream.open(VelProfFile, ios::out | ios::trunc);  
+                        VelProf.print_result(VelProfFileStream);  
                     }     
                     std::cout << "Terminating..." << std::endl;   
                     std::terminate(); 
