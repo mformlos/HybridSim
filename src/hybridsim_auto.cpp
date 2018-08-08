@@ -18,7 +18,7 @@ void signalHandler(int signum)
 int main(int argc, char* argv[]) {
     SignalCaught = 0;
     signal(SIGINT, signalHandler); 
-    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}; 
+    unsigned Lx{}, Ly{}, Lz{}, MPCRho{}, Seed{}; 
     unsigned long long COMWrapInterval{1000}, MPCInterval {}, EquilSteps{}, SimSteps{}, TotalSteps {}, n {}, m {}; 
     int tid{}, procs{}, maxt{}, inpar{}, dynamic{}, nested{}, nthreads{}; 
     double MDStep{}, MPCStep{}, Shear{}, TotalTime{}, EquilTime{}, SimTime{}, Temperature{}, Time{};
@@ -64,6 +64,8 @@ int main(int argc, char* argv[]) {
     EquilTime = extractParameter<double>("EquilTime", inputfile, ParameterInitialized); 
     if (!ParameterInitialized) return EXIT_FAILURE;
     SimTime = extractParameter<double>("SimTime", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    Seed = extractParameter<double>("Seed", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
     OutputStepFile = extractParameter<std::string>("OutputStepFile", inputfile, ParameterInitialized);
     if (!ParameterInitialized) return EXIT_FAILURE;
@@ -116,6 +118,7 @@ int main(int argc, char* argv[]) {
     std::cout << "StartTime is " << Time << std::endl;  
     std::cout << "EquilTime is " << EquilTime << std::endl;    
     std::cout << "TotalTime is " << TotalTime << std::endl;
+    std::cout << "RNG seed is " << Seed << std::endl; 
     std::cout << "OutputStepFile is " << OutputStepFile << std::endl;
     std::cout << "MoleculeFile is " << MoleculeFile << std::endl;
     std::cout << "LinkFile is " << LinkFile << std::endl;
@@ -126,6 +129,13 @@ int main(int argc, char* argv[]) {
     std::cout << "VelProfFile is " << VelProfFile << std::endl;
     std::cout << "NeighbourCellFile is " << NeighbourCellFile << std::endl;
     
+    /////////////////////////////////////
+    
+    ////// RANDOM ENGINE SEEDING & WARMUP //////
+
+    Rand::seed(Seed); 
+    Rand::warmup(10000); 
+   
     /////////////////////////////////////
     
     /////// SYSTEM INITIALIZATION ///////
@@ -262,9 +272,11 @@ int main(int argc, char* argv[]) {
             printf("Nested parallelism enabled? = %d\n", nested);
         }
         #endif
-        ////// RANDOM ENGINE SEEDING & WARMUP //////
+        ////// RANDOM ENGINE SEEDING & WARMUP for openMP //////
+        #ifdef _OPENMP
         Rand::seed(tid); 
         Rand::warmup(10000); 
+        #endif
         
         ///////////////////////////////////
         ////// MAIN SIMULATION LOOP ///////
