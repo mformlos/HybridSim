@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
     Vector3d COMPos; 
     
     if (argc != 5) {
-            std::cout << "usage: ./msd DIRECTORY STARTSTEP ENDSTEP SAMPLINGSTEP" << std::endl;  
+            std::cout << "usage: ./stress_tensor DIRECTORY STARTSTEP ENDSTEP SAMPLINGSTEP" << std::endl;  
             return EXIT_FAILURE; 
     }
     

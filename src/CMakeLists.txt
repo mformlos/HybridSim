@@ -7,6 +7,9 @@ include_directories ("${PROJECT_SOURCE_DIR}/lib/Analysis")
 add_executable(hybridsim_auto hybridsim_auto.cpp)
 target_link_libraries(hybridsim_auto Random System MPC) 
 
+add_executable(fluid_only fluid_only.cpp)
+target_link_libraries(fluid_only Random MPC) 
+
 add_executable(AFMsim AFMsim.cpp)
 target_link_libraries(AFMsim Random System)
 
@@ -36,6 +39,10 @@ add_executable(evaltest evaltest.cpp)
 add_executable(msd msd.cpp)
 target_link_libraries(msd Molecule)
 
+add_executable(msd_stepfile msd_stepfile.cpp)
+target_link_libraries(msd_stepfile Molecule)
+
+
 add_executable(rgyr_corr rgyr_corr.cpp)
 
 add_executable(rgyr_corr_multiple rgyr_corr_multiple.cpp)
@@ -46,4 +53,7 @@ add_executable(evec_corr evec_corr.cpp)
 
 add_executable(stress_tensor stress_tensor.cpp)
 target_link_libraries(stress_tensor Molecule)
+
+add_executable(density_profile density_profile.cpp)
+target_link_libraries(density_profile Molecule)
 

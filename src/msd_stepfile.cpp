@@ -5,13 +5,13 @@
 #include <string>
 #include <map>
 #include "Molecule.h"
-
+#include "HelperFunctions.h"
 
 int main(int argc, char* argv[]) {
 
-    std::string Directory{}, ConfigFile{}, ConfigFileStart{};  
-    double StartTime{}, EndTime{}, MaxMSDTime{}, SamplingTime{}, DeltaTSim{0.01}, DeltaMSDTime {}, CurrentDt{}; 
-    int StartStep{}, EndStep{}, MaxMSDStep{}, SamplingStep{}, CurrentSamplingStep{}, CurrentDtStep{}, DeltaMSDStep{};   
+    std::string Directory{}, ConfigFile{}, ConfigFileStart{}, StepFile{};  
+    double DeltaTSim{0.01}, CurrentDt{}; 
+    unsigned long long StartStep{}, CurrentDtStep{}, Monomers{}, FileStep{};   
     std::map<double,double> msd; 
     std::map<double,double> msd_x; 
     std::map<double,double> msd_y;
@@ -19,30 +19,38 @@ int main(int argc, char* argv[]) {
     std::map<double,double>::iterator msd_iter; 
     std::map<double,double> msd_count; 
     std::map<double,double>::iterator msd_count_iter; 
-    Molecule MolFirst(200);
-    Molecule MolSecond(200);  
-    Vector3d COMFirst; 
-    Vector3d COMSecond; 
+   
     
-    if (argc != 7) {
-            std::cout << "usage: ./msd DIRECTORY STARTSTEP ENDSTEP MAXMSDSTEP SAMPLINGSTEP DELTAMSDSTEP" << std::endl;  
+    std::vector<unsigned long long> StepVector{}; 
+    std::vector<unsigned long long>::iterator StepVectorIterator{}; 
+    
+    if (argc != 6) {
+            std::cout << "usage: ./msd DIRECTORY STARTSTEP STEPFILE MONOMERS DELTAT" << std::endl;  
             return EXIT_FAILURE; 
     }
     
     Directory = argv[1]; 
     StartStep = std::stoi(argv[2]); 
-    EndStep = std::stoi(argv[3]); 
-    MaxMSDStep = std::stoi(argv[4]); 
-    SamplingStep = std::stoi(argv[5]); 
-    DeltaMSDStep = std::stoi(argv[6]);
+    StepFile = argv[3];
+    Monomers = std::stoi(argv[4]);
+    DeltaTSim = std::stod(argv[5]); 
     
-    StartTime = StartStep*DeltaTSim;
-    EndTime = EndStep*DeltaTSim; 
-    MaxMSDTime = MaxMSDStep*DeltaTSim; 
-    SamplingTime = SamplingStep*DeltaTSim; 
-    DeltaMSDTime = DeltaMSDStep*DeltaTSim; 
+    std::cout << "Directory: " << Directory << " StepFile: " << StepFile << std::endl;
+	std::cout << "StartStep: " << StartStep << std::endl;
     
-    CurrentSamplingStep = StartStep; 
+    Molecule MolFirst(Monomers);
+    Molecule MolSecond(Monomers);  
+    Vector3d COMFirst; 
+    Vector3d COMSecond; 
+    
+    initializeStepVector(StepVector, StepFile); 
+    for(auto& s : StepVector){
+        s -= StartStep;
+        //std::cout << s << std::endl; 
+    } 
+    
+    
+
     ConfigFileStart = Directory+"/configs/config";
     
     std::string MSDout = Directory+"/data/MSD_total"; 
@@ -56,32 +64,36 @@ int main(int argc, char* argv[]) {
    
     Vector3d Relative{}; 
     
-    while (CurrentSamplingStep < EndStep) {
-        //std::cout << CurrentSamplingStep << std::endl; 
-        CurrentDtStep = DeltaMSDStep; 
-        CurrentDt = DeltaMSDTime;     
-        ConfigFile = ConfigFileStart+std::to_string(CurrentSamplingStep)+".pdb";
-        //std::cout << "CurrentFirstFile: " << ConfigFile << std::endl; 
-        if (!(MolFirst.initializePositions(ConfigFile))) return EXIT_FAILURE; 
-        COMFirst = MolFirst.centerOfMassPosition(); 
-        while(CurrentDtStep <= MaxMSDStep && CurrentSamplingStep+CurrentDtStep <= EndStep) {
-            ConfigFile = ConfigFileStart+std::to_string(CurrentSamplingStep+CurrentDtStep)+".pdb";
-            //std::cout << "CurrentSecondFile: " << ConfigFile << std::endl;
-            if (!(MolSecond.initializePositions(ConfigFile))) return EXIT_FAILURE;  
-            COMSecond = MolSecond.centerOfMassPosition(); 
-            for (unsigned i = 0; i < MolFirst.NumberOfMonomers; i++) {
-                Relative = MolFirst.Monomers[i].Position - COMFirst - (MolSecond.Monomers[i].Position - COMSecond);
-                msd[CurrentDt] += Relative.squaredNorm();
-                msd_x[CurrentDt] += pow(Relative(0),2); 
-                msd_y[CurrentDt] += pow(Relative(1),2);
-                msd_z[CurrentDt] += pow(Relative(2),2);                 
-            }
-            msd_count[CurrentDt] += MolFirst.NumberOfMonomers; 
-            CurrentDtStep += DeltaMSDStep;
-            CurrentDt +=  DeltaMSDTime;
+    ConfigFile = ConfigFileStart+std::to_string(StartStep)+".pdb";
+    if (!(MolFirst.initializePositions(ConfigFile))) {
+        std::cout << "File " << ConfigFile << " does not exist! " << std::endl; 
+        return EXIT_FAILURE; 
+    }
+    COMFirst = MolFirst.centerOfMassPosition(); 
+    
+    StepVectorIterator = StepVector.begin(); 
+    
+    while (StepVectorIterator != StepVector.end()) {
+        CurrentDtStep = *StepVectorIterator; 
+        //std::cout << CurrentDtStep << std::endl; 
+	    CurrentDt = CurrentDtStep*DeltaTSim;
+	    FileStep = StartStep+CurrentDtStep;
+	    ConfigFile = ConfigFileStart+std::to_string(FileStep)+".pdb";
+	    if (!(MolSecond.initializePositions(ConfigFile))) {
+	        std::cout << FileStep << " , reached last step" << std::endl;
+	        break; 
+	    }  
+        COMSecond = MolSecond.centerOfMassPosition(); 
+        for (unsigned i = 0; i < MolFirst.NumberOfMonomers; i++) {
+            Relative = MolFirst.Monomers[i].Position - COMFirst - (MolSecond.Monomers[i].Position - COMSecond);
+            msd[CurrentDt] += Relative.squaredNorm();
+            msd_x[CurrentDt] += pow(Relative(0),2); 
+            msd_y[CurrentDt] += pow(Relative(1),2);
+            msd_z[CurrentDt] += pow(Relative(2),2);                 
         }
-        CurrentSamplingStep += SamplingStep;   
-    }  
+        msd_count[CurrentDt] += MolFirst.NumberOfMonomers; 
+        StepVectorIterator++;
+    }
     
     bool printing {true}; 
     msd_iter = msd.begin(); 

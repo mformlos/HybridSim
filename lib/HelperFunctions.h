@@ -35,6 +35,16 @@ bool initializeStepVector(std::vector<unsigned long long>& vec, std::string file
     return true; 
 } 
 
+bool initializeStringVector(std::vector<std::string>& vec, std::string filename) {
+	vec.clear();
+	std::ifstream file (filename, std::ios::in);
+	if (!file.is_open()) return false;
+	std::string astring {};
+	while(file >> astring) vec.push_back(astring);
+	file.close(); 
+	return true;
+}
+
 struct ForceUpdate {
     unsigned long long Step; 
     Vector3d Force; 

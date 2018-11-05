@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
 
     Corr_rg[0.0] = 0.0; 
     for (auto& step : StepVector) {
-        double dt {step*DeltaT}; 
+        double dt {(step-StartStep)*DeltaT}; 
         Corr_rg[dt] = 0.0; 
         Corr_rg_count[dt] = 0;
     } 
@@ -118,8 +118,8 @@ int main(int argc, char* argv[]) {
     
         while (T0Step <= LastStep) { 
             StepVectorIterator = StepVector.begin();  
-            T1Step = T0Step; 
-            DTStep = 0; 
+            T1Step = *StepVectorIterator; 
+            DTStep = T1Step-T0Step; 
             //std::cout << "T0Step = " << T0Step << std::endl; 
             while (StepVectorIterator != StepVector.end() && T1Step <= LastStep) {
                 Time = DTStep*DeltaT;
@@ -133,8 +133,9 @@ int main(int argc, char* argv[]) {
                 }   
                 Corr_rg2[Time] += (pow(Rg[T0Step],2)- Rg_sqmean)*(pow(Rg[T1Step],2)-Rg_sqmean); 
                 Corr_rg_count[Time]++; 
-                DTStep = *StepVectorIterator;
-                T1Step = T0Step+DTStep;
+                //DTStep = *StepVectorIterator;
+                T1Step = *StepVectorIterator;
+                DTStep = T1Step-T0Step;
                 StepVectorIterator++;   
             }
             T0Step += SampleStep; 
