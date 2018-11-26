@@ -42,6 +42,8 @@ target_link_libraries(msd Molecule)
 add_executable(msd_stepfile msd_stepfile.cpp)
 target_link_libraries(msd_stepfile Molecule)
 
+add_executable(C_angle_stepfile c_angle_stepfile.cpp)
+target_link_libraries(C_angle_stepfile Molecule)
 
 add_executable(rgyr_corr rgyr_corr.cpp)
 
