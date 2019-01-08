@@ -85,6 +85,7 @@ public:
     bool addMolecules(std::string, double mass = 1.0); 
     bool addLinks(std::string);  
     bool initializePositions(std::string); 
+    bool initializePositionsPDB(std::string);
     bool initializeVelocities(std::string);
     void initializeVelocitiesRandom(double); 
     void setMoleculeCOM(unsigned, Vector3d); 

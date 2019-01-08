@@ -592,6 +592,48 @@ bool System::initializePositions(std::string filename) {
     return true; 
 }
 
+bool System::initializePositionsPDB(std::string filename) {
+    std::ifstream file {filename};
+    if (!file.is_open()) return false;
+    std::string dump, line{}; 
+    double x, y, z, vx, vy, vz;
+    unsigned count {0}, Npart {NumberOfParticles()}; 
+    unsigned mol{0}, mono{0}; 
+    if (file.is_open()) {
+        while(getline(file, line)) {
+            std::istringstream iss(line); 
+            if (iss >> dump >> dump >> dump >> dump >> dump >> x >> y >> z >> vx  >> vy >> vz)        
+            { 
+			    if (count >= Npart) {
+			        std::cout << "all " << count << " monomer positions were initialized, but there is more data" << std::endl; 
+			        return true; 
+			    }
+			    Molecules[mol].Monomers[mono].Position(0) = x;
+			    Molecules[mol].Monomers[mono].Position(1) = y;
+			    Molecules[mol].Monomers[mono].Position(2) = z;
+			    Molecules[mol].Monomers[mono].Velocity(0) = vx;
+			    Molecules[mol].Monomers[mono].Velocity(1) = vy;
+			    Molecules[mol].Monomers[mono].Velocity(2) = vz;
+			    mono++; 
+			    if (mono >= Molecules[mol].NumberOfMonomers) {
+			        mono = 0; 
+			        mol++;    
+			    }
+			    count++;
+			}
+        }
+    }    
+       
+    if (count != Npart) {
+       	std::cout << "only " << count << " monomers were initialized" << std::endl;
+        return false;
+    }
+    //std::cout << "all " << count << " monomer positions were initialized" << std::endl;
+    file.close();
+    return true;
+}
+
+
 bool System::initializeVelocities(std::string filename) {
     std::ifstream file {filename};
     if (!file.is_open()) return false; 
@@ -915,6 +957,7 @@ std::vector<double> System::calculateExtension(unsigned dim) {
 }
 
 void System::printPDB(FILE* pdb, int step, bool velocs) {
+    wrapMoleculesCOM();
     int mol_count{0}; 
     fprintf(pdb, "MODEL     %d \n", step);
     for (auto& mol : Molecules) {
@@ -922,10 +965,10 @@ void System::printPDB(FILE* pdb, int step, bool velocs) {
 		int mono_count{0}; 
 		for (auto& mono : mol.Monomers) {
 		    if (velocs) {
-		        fprintf(pdb, "ATOM %6d  %c   GLY   %3d     %7.3f %7.3f %7.3f %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2), mono.Velocity(0), mono.Velocity(1), mono.Velocity(2));
+		        fprintf(pdb, "ATOM %6d  C   GLY   %3d     %7.3f %7.3f %7.3f %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2), mono.Velocity(0), mono.Velocity(1), mono.Velocity(2));
 		    }
 			else {
-			    fprintf(pdb, "ATOM %6d  %c   GLY   %3d     %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2));
+			    fprintf(pdb, "ATOM %6d  C   GLY   %3d     %7.3f %7.3f %7.3f \n", mono_count+1, mol_count, mono.Position(0), mono.Position(1), mono.Position(2));
 		    }
 		    mono_count++; 
 		}	

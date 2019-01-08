@@ -56,6 +56,9 @@ add_executable(evec_corr evec_corr.cpp)
 add_executable(stress_tensor stress_tensor.cpp)
 target_link_libraries(stress_tensor Molecule)
 
+add_executable(stress_tensor_dense stress_tensor_dense.cpp)
+target_link_libraries(stress_tensor_dense System)
+
 add_executable(density_profile density_profile.cpp)
 target_link_libraries(density_profile Molecule)
 
