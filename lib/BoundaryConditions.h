@@ -2,6 +2,8 @@
 #define LIB_BOUNDARY_H_
 
 #include <array>
+#include "Particle.h"
+#include "Molecule.h"
 
 inline void wrap(Particle& part, const std::array<unsigned, 3>& BoxSize, const double& Shear, const double& delrx) {
     double cy {floor(part.Position(1)/BoxSize[1])}; 

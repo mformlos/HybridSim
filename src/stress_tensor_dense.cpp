@@ -153,10 +153,11 @@ int main(int argc, char* argv[]) {
     while (Step <= EndStep) {
         ConfigFile = ConfigFileStart+std::to_string(Step)+".pdb";
         if (!Sys.initializePositionsPDB(ConfigFile)) {
-	        std::cout << "problem with initializing monomers" << std::endl;
-	        break; 
+	        std::cout << Step << ", problem with initializing monomers" << std::endl;
+	        Step += SamplingStep; 
+	        continue; 
 	    }
-	    
+    
         //Mol.calculateInternalForces(); 
         StressCurrent = Matrix3d::Zero(); 
         for (auto& Mol : Sys.Molecules) {
@@ -165,7 +166,7 @@ int main(int argc, char* argv[]) {
         }
         //StressAverage += StressCurrent; 
         //StressSTD += StressCurrent.cwiseProduct(StressCurrent); 
-        Step += SamplingStep; 
+        
         tau_xx << Step << " " << StressCurrent(0,0) << std::endl;
         tau_xy << Step << " " << StressCurrent(0,1) << std::endl;
         tau_xz << Step << " " << StressCurrent(0,2) << std::endl;
@@ -175,7 +176,7 @@ int main(int argc, char* argv[]) {
         tau_zx << Step << " " << StressCurrent(2,0) << std::endl;
         tau_zy << Step << " " << StressCurrent(2,1) << std::endl;
         tau_zz << Step << " " << StressCurrent(2,2) << std::endl;
-        
+        Step += SamplingStep;
         
     }
     

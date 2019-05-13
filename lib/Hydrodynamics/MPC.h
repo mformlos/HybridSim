@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <fstream>
+#include <list>
 #include "Particle.h"
 #include "Molecule.h"
 #include "Rand.h"
@@ -27,7 +28,9 @@ public:
     double s; 
     double Temperature;
     double Shear;
-    double delrx;  
+    double delrx; 
+    unsigned Rho; 
+    double STDNoHI; 
     Vector3d GridShift;
     std::vector<MPCParticle> Fluid; 
     std::vector<MPCParticle> Solute; 
@@ -38,6 +41,7 @@ public:
     std::array<unsigned,3> BoxSize;
     
     MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double T, double gamma); 
+    MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double T, double gamma, bool HI);
     
     //Initialization: 
     void initializeRandom(); 
@@ -53,15 +57,20 @@ public:
     //void sort(); 
     void sortOnly();
     void sortOnly(std::vector<MDParticle>&);  
-    void updateSoluteCellIndex(MPCParticle&); 
+    void updateSoluteCellIndex(MPCParticle&);
+    void updateSoluteCellIndexWithList(MPCParticle&, std::list<unsigned int>&); 
     void calculateCOMVel(unsigned); 
+    void calculateCOMVelNoHI(unsigned); 
     void drawRotation(unsigned); 
     void rotate(unsigned); //rotate a particle
     void rotateSolute(unsigned); 
+    void rotateSoluteNoHI(unsigned); 
     void getSolute(const std::vector<MDParticle>&); 
     void getSolute(const std::vector<Molecule>&); 
     void returnSolute(std::vector<Molecule>&); 
     void initializeSoluteVector(unsigned N); 
+    void collisionNoHI(unsigned); 
+    
      
 
     

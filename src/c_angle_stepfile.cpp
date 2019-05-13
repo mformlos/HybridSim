@@ -75,13 +75,14 @@ int main(int argc, char* argv[]) {
     EvecFile.close(); 
     
     
-    for (auto st = StepVector.begin(); st != StepVector.end(); st++) {
+    /*for (auto st = StepVector.begin(); st != StepVector.end(); st++) {
         if (*st >= StartStep) {
             StepVectorIterator = st; 
             break;
         }
     }
     StepVector.erase(StepVector.begin(), StepVectorIterator); 
+    */
     
     Molecule MolFirst(Monomers);
     Molecule MolSecond(Monomers);  
@@ -98,8 +99,8 @@ int main(int argc, char* argv[]) {
     
     
     for (auto& st : StepVector) {
-        C_angle[(st-StartStep)*DeltaT] = 0.0; 
-        C_angle_count[(st-StartStep)*DeltaT] = 0; 
+        C_angle[st*DeltaT] = 0.0; 
+        C_angle_count[st*DeltaT] = 0; 
     }
     
     StepVectorIterator = StepVector.begin();  
@@ -110,13 +111,13 @@ int main(int argc, char* argv[]) {
     double Amean{0.0};
     while (T0Step <= LastStep) { 
         StepVectorIterator = StepVector.begin();  
-        for (auto st = StepVector.begin(); st != StepVector.end(); st++) {
+        /*for (auto st = StepVector.begin(); st != StepVector.end(); st++) {
             if (*st == T0Step) {
                 StepVectorIterator = st; 
                 break;
             }
             
-        }
+        }*/
         //StepVector.erase(StepVector.begin(), StepVectorIterator);
         ConfigFileName = ConfigFileStart+std::to_string(T0Step)+".pdb";
         if (!(MolFirst.initializePositions(ConfigFileName))) {
@@ -133,9 +134,9 @@ int main(int argc, char* argv[]) {
             //Amean += A0[m]; 
         }
         std::cout << "T0Step: " << T0Step << std::endl; 
-        std::cout << "T1Step: " << *StepVectorIterator << std::endl; 
+        std::cout << "T1Step: " << *StepVectorIterator+T0Step << std::endl; 
         while (StepVectorIterator != StepVector.end()) {
-            T1Step = *StepVectorIterator; 
+            T1Step = *StepVectorIterator+T0Step; 
             //std::cout << T1Step << std::endl; 
             DTStep = T1Step-T0Step; 
             Time = DTStep*DeltaT;

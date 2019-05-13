@@ -174,25 +174,9 @@ int main(int argc, char* argv[]) {
         } 
     }
     //Vector3d newCOM(10., 18.,10.);
-    if (Sys.NumberOfMolecules() == 1)  Sys.centerMolecule(0); //Sys.setMoleculeCOM(0,newCOM); 
-    else if (Sys.NumberOfMolecules() > 1){
-        Sys.wrapMoleculesCOM(); 
-        std::cout << "Molecules' centers of mass set inside box." << std::endl; 
-    }
     
     
-    try {
-        Sys.updateCellLists();
-        Sys.calculateForcesCellList();
-        //Sys.updateVerletLists(); 
-        //Sys.calculateForces();
-        //Sys.calculateForcesBrute(); 
-    }
-    catch (const LibraryException &ex) {
-        std::cout << ex.what() << std::endl; 
-        std::cout << "bad initial configuration! Terminating program." << std::endl;   
-        return EXIT_FAILURE; 
-    }
+    
     
     
     //////////////////////////////////
@@ -218,6 +202,32 @@ int main(int argc, char* argv[]) {
     }    
     Mpc.initializeSoluteVector(Sys.NumberOfParticles()); 
     
+    /// start delrx 
+    Mpc.updateBoxShift(Time); 
+    Sys.delrx = Mpc.delrx; 
+    
+    std::cout << "Box shift at start: " << Sys.delrx << std::endl; 
+    
+    if (Sys.NumberOfMolecules() == 1)  Sys.centerMolecule(0); //Sys.setMoleculeCOM(0,newCOM); 
+    else if (Sys.NumberOfMolecules() > 1){
+        Sys.wrapMoleculesCOM(); 
+        std::cout << "Molecules' centers of mass set inside box." << std::endl; 
+    }
+    
+    try {
+        Sys.updateCellLists();
+        Sys.calculateForcesCellList();
+        //Sys.updateVerletLists(); 
+        //Sys.calculateForces();
+        //Sys.calculateForcesBrute(); 
+    }
+    catch (const LibraryException &ex) {
+        std::cout << ex.what() << std::endl; 
+        std::cout << "bad initial configuration! Terminating program." << std::endl;   
+        return EXIT_FAILURE; 
+    }
+    
+    /// 
     
     /////////////////////////////////////
     
@@ -229,7 +239,18 @@ int main(int argc, char* argv[]) {
         std::cout << "OutputStepFile does not exist!" << std::endl; 
         return EXIT_FAILURE; 
     }
-    std::cout << "Output will be done " << OutputSteps.size() << " times. " << std::endl; 
+    
+    unsigned count {0}; 
+    for (auto& step : OutputSteps) {
+        if (step < Time/MDStep ) {
+            count++; 
+        }
+        else break; 
+    }
+    
+    std::vector<decltype(OutputSteps)::value_type>(OutputSteps.begin()+count, OutputSteps.end()).swap(OutputSteps);
+    
+    std::cout << "Output will be done " << OutputSteps.size() << " times. First Output at:  " << *OutputSteps.begin() << std::endl; 
     OutputStepsIt = OutputSteps.begin(); 
     
     std::ofstream StatisticsStream(StatisticsFile, std::ios::out | std::ios::app); 

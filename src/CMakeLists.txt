@@ -7,6 +7,9 @@ include_directories ("${PROJECT_SOURCE_DIR}/lib/Analysis")
 add_executable(hybridsim_auto hybridsim_auto.cpp)
 target_link_libraries(hybridsim_auto Random System MPC) 
 
+add_executable(hybridsim_noHI hybridsim_noHI.cpp)
+target_link_libraries(hybridsim_noHI Random System MPC) 
+
 add_executable(fluid_only fluid_only.cpp)
 target_link_libraries(fluid_only Random MPC) 
 
@@ -33,6 +36,9 @@ target_link_libraries(thread_random Random)
 
 add_executable(copy_test copy_test.cpp) 
 target_link_libraries(copy_test Particle)
+
+add_executable(structure_factor_anisotropic structure_factor_anisotropic.cpp) 
+target_link_libraries(structure_factor_anisotropic Particle)
 
 add_executable(evaltest evaltest.cpp) 
 

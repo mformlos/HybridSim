@@ -6,6 +6,8 @@ MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperatur
     Temperature {aTemperature},
     Shear {aShear}, 
     delrx {0.0},
+    Rho {N_c},
+    STDNoHI {0.0},
     GridShift {Vector3d::Zero() }  
     {
         BoxSize[0] = Lx; 
@@ -20,6 +22,31 @@ MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperatur
             Fluid.push_back(MPCParticle(1.0)); 
         }  
         
+    }
+    
+MPC::MPC(unsigned Lx, unsigned Ly, unsigned Lz, unsigned N_c, double aTemperature, double aShear, bool HI) : 
+    c {cos(130.0*M_PI/180.0)}, 
+    s {sin(130.0*M_PI/180.0)},
+    Temperature {aTemperature},
+    Shear {aShear}, 
+    delrx {0.0},
+    Rho {N_c}, 
+    STDNoHI{sqrt(N_c*aTemperature)},
+    GridShift {Vector3d::Zero() }  
+    {
+        BoxSize[0] = Lx; 
+        BoxSize[1] = Ly;
+        BoxSize[2] = Lz;
+        NumberOfCells = Lx*Ly*Lz; 
+        NumberOfParticles = HI ? N_c*NumberOfCells : 0; 
+        CellList = std::vector<std::forward_list<MPCParticle*>>(NumberOfCells, std::forward_list<MPCParticle*>()); 
+        CellData = std::vector<CellMembers>(NumberOfCells, CellMembers());  
+        if (HI) {
+            Fluid.reserve(NumberOfParticles); 
+            for (unsigned i = 0; i < NumberOfParticles; i++) {
+                Fluid.push_back(MPCParticle(1.0)); 
+            }
+        }  
     }
     
 void MPC::initializeRandom() {
@@ -157,6 +184,21 @@ void MPC::updateSoluteCellIndex(MPCParticle& solute) {
     solute.CellIndex = (int)solute.Position(2) + (int)solute.Position(1)*BoxSize[2] + (int)solute.Position(0)*BoxSize[2]*BoxSize[1];
 }
 
+void MPC::updateSoluteCellIndexWithList(MPCParticle& solute, std::list<unsigned>& SoluteCells) {
+    //wrap(solute, BoxSize, Shear, delrx);
+    solute.CellIndex = (int)solute.Position(2) + (int)solute.Position(1)*BoxSize[2] + (int)solute.Position(0)*BoxSize[2]*BoxSize[1];
+    SoluteCells.push_back(solute.CellIndex); 
+    try {
+        CellList.at(solute.CellIndex).push_front(&solute); 
+    }
+    catch (std::exception& e) {
+        std::cout << "The following exception occurred : " << e.what() << std::endl;
+        std::cout << "for a particle with position "  << solute.Position.transpose() << " and cell index " << solute.CellIndex << std::endl;
+        throw std::out_of_range("OOR");  
+        return; 
+    }    
+    
+}
 
 void MPC::sortOnly() {
     for (auto& Cell : CellList) {
@@ -225,6 +267,24 @@ void MPC::calculateCOMVel(unsigned Index) {
     }
 }
 
+void MPC::calculateCOMVelNoHI(unsigned Index) {
+    Vector3d COMVel {Vector3d::Zero()}; 
+    double TotalMass{0.0};
+    for (auto& part : CellList[Index]) {
+        COMVel += part -> Velocity * part -> Mass;   
+        TotalMass += part -> Mass;    
+    }
+    double posy {(int)(CellList[Index].front()->Position(1)-BoxSize[1]*0.5)+0.5};
+    
+    COMVel(0) += Rand::real_normal(Shear*Rho*posy, STDNoHI);
+    COMVel(1) += Rand::real_normal(0.0, STDNoHI);
+    COMVel(2) += Rand::real_normal(0.0, STDNoHI);
+    
+    COMVel /= (TotalMass+Rho);
+    
+    CellData[Index].CellCOMVel = COMVel; 
+}
+
 void MPC::drawRotation(unsigned Index) {
     double phi { };
 	double theta { };
@@ -263,6 +323,47 @@ void MPC::rotateSolute(unsigned i) {
     wrap(Solute[i], BoxSize, Shear, delrx); 
 
 }
+
+/*void MPC::rotateSoluteNoHI(unsigned i) {
+    int Index{Solute[i].CellIndex}; 
+    Solute[i].Velocity = CellData[Index].CellCOMVel + CellData[Index].CellRotation*(Solute[i].Velocity - CellData[Index].CellCOMVel); 
+    wrap(Solute[i], BoxSize, Shear, delrx); 
+}*/
+
+void MPC::rotateSoluteNoHI(unsigned i) {
+    // draw rot matrix 
+    double phi { };
+	double theta { };
+	Vector3d RotationAxis { };
+	Matrix3d RotationMatrix { };
+	phi = 2.*M_PI*(Rand::real_uniform());
+	theta = 2.*(Rand::real_uniform()-0.5);
+	RotationAxis(0) = sqrt(1-theta*theta)*cos(phi);
+	RotationAxis(1) = sqrt(1-theta*theta)*sin(phi);
+	RotationAxis(2) = theta;
+	RotationMatrix(0,0) = RotationAxis(0)*RotationAxis(0) + (1 - RotationAxis(0)*RotationAxis(0))*c;
+	RotationMatrix(0,1) = RotationAxis(0)*RotationAxis(1)*(1 - c) - RotationAxis(2)*s;
+	RotationMatrix(0,2) = RotationAxis(0)*RotationAxis(2)*(1 - c) + RotationAxis(1)*s;
+	RotationMatrix(1,0) = RotationAxis(0)*RotationAxis(1)*(1 - c) + RotationAxis(2)*s;
+	RotationMatrix(1,1) = RotationAxis(1)*RotationAxis(1) + (1 - RotationAxis(1)*RotationAxis(1))*c;
+	RotationMatrix(1,2) = RotationAxis(1)*RotationAxis(2)*(1 - c) - RotationAxis(0)*s;
+	RotationMatrix(2,0) = RotationAxis(0)*RotationAxis(2)*(1 - c) - RotationAxis(1)*s;
+	RotationMatrix(2,1) = RotationAxis(1)*RotationAxis(2)*(1 - c) + RotationAxis(0)*s;
+	RotationMatrix(2,2) = RotationAxis(2)*RotationAxis(2) + (1 - RotationAxis(2)*RotationAxis(2))*c;
+
+    //int Index{Solute[i].CellIndex}; 
+    
+    Vector3d Momentum {Vector3d::Zero()};
+    Momentum(0) = Rand::real_normal(Shear*Rho*(Solute[i].Position(1)-BoxSize[1]*0.5), STDNoHI);
+    Momentum(1) = Rand::real_normal(0.0, STDNoHI);
+    Momentum(2) = Rand::real_normal(0.0, STDNoHI);
+    Momentum += Solute[i].Mass*Solute[i].Velocity; 
+    Momentum /= (Solute[i].Mass + Rho);
+    Solute[i].Velocity = Momentum + RotationMatrix*(Solute[i].Velocity - Momentum);
+    //Solute[i].Velocity = Momentum + CellData[Index].CellRotation*(Solute[i].Velocity - Momentum); 
+    wrap(Solute[i], BoxSize, Shear, delrx); 
+}
+
 
 void MPC::updateBoxShift(double dt) {
     delrx += Shear*BoxSize[1]*dt; 

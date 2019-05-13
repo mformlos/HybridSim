@@ -1,5 +1,6 @@
 #include <../Eigen/Eigen/Dense>
 #include <sstream>
+#include "Particle.h"
 
 using namespace Eigen; 
 
@@ -21,6 +22,19 @@ Type extractParameter(std::string key, std::ifstream& inputfile, bool& found) {
     }
     std::cout << "keyword not found" << std::endl; 
     return param; 
+}
+
+template <typename Type>
+bool initializeVector(std::vector<Type>& vec, std::string filename) {
+    std::ifstream file (filename, std::ios::in); 
+    if (!file.is_open()) {
+        return false; 
+    }
+    Type in{}; 
+    while(file >> in) {
+        vec.push_back(in); 
+    } 
+    return true;
 }
 
 bool initializeStepVector(std::vector<unsigned long long>& vec, std::string filename) {
@@ -87,3 +101,31 @@ bool initializeConstraintUpdateVector(std::vector<ConstraintUpdate>& vec, std::s
     } 
     return true; 
 } 
+
+bool initializePositions(std::vector<Particle>& vec, std::string filename) {
+    std::ifstream file {filename};
+    std::string line{};  
+    if (!file.is_open()) return false;
+    std::string dump, Type;
+    double x, y, z;
+    unsigned count {0};
+    if (file.is_open()) {
+        file >> dump >> dump;
+        while(getline(file, line)) {
+            std::istringstream iss(line); 
+            if (iss >> dump >> dump >> Type >> dump >> dump >> x >> y >> z >> dump >> dump >> dump)        
+            { 
+			    vec[count].Position(0) = x;
+			    vec[count].Position(1) = y;
+			    vec[count].Position(2) = z;
+			    count++;
+			}
+		}
+        if (count != vec.size()) {
+        	std::cout << "only " << count << " monomers were initialized" << std::endl;
+            return false;
+        }
+    }
+    file.close(); 
+    return true;
+}
