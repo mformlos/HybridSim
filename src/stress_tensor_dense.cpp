@@ -6,20 +6,21 @@
 #include <string>
 #include <map>
 #include "System.h"
-
+#include "HelperFunctions.h"
 int main(int argc, char* argv[]) {
 
-    std::string Directory{}, ConfigFile{}, ConfigFileStart{}, BondFile{},  MoleculeFileName{};
-    double StartTime{}, EndTime{}, DeltaTSim{0.01};
+    std::string Directory{}, ConfigFile{}, ConfigFileStart{}, BondFile{},  MoleculeFileName{}, NeighbourCellFile{};
+    double StartTime{}, EndTime{}, DeltaTSim{0.01}, Shear{}, delrx{};
     int StartStep{}, EndStep{}, Step{}, SamplingStep{}, N{}, NumberOfMolecules{}; 
     Molecule Mol(200); 
+    unsigned Lx{}, Ly{}, Lz{};
     Matrix3d StressAverage{Matrix3d::Zero()};
     Matrix3d StressCurrent{Matrix3d::Zero()};
     Matrix3d StressSTD{Matrix3d::Zero()}; 
     Vector3d COMPos; 
-    
-    if (argc != 6) {
-            std::cout << "usage: ./stress_tensor DIRECTORY STARTSTEP ENDSTEP SAMPLINGSTEP MOLECULEFILE" << std::endl;  
+    bool ParameterInitialized{};    
+    if (argc != 7) {
+            std::cout << "usage: ./stress_tensor DIRECTORY STARTSTEP ENDSTEP SAMPLINGSTEP MOLECULEFILE PARAMETERFILE" << std::endl;  
             return EXIT_FAILURE; 
     }
     
@@ -28,11 +29,33 @@ int main(int argc, char* argv[]) {
     EndStep = std::stoi(argv[3]);
     SamplingStep = std::stoi(argv[4]); 
     MoleculeFileName = argv[5];
-    
+
     std::cout << "Directory: " << Directory << std::endl; 
     std::cout << "StartStep: " << StartStep << "   EndStep: " << EndStep << "   SamplingStep: " << SamplingStep << std::endl; 
-    
-    System Sys(200, 200, 200, 0.0, 0.0, false);
+   
+    std::ifstream inputfile(argv[6], ios::in);
+    if (!inputfile.is_open()) {
+        std::cout << "could not open file '" << argv[1] << "' , exiting" << std::endl;
+        return EXIT_FAILURE;
+    }
+ 
+    Lx = extractParameter<unsigned>("BoxX", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    Ly = extractParameter<unsigned>("BoxY", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    Lz = extractParameter<unsigned>("BoxZ", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    Shear = extractParameter<double>("Shear", inputfile, ParameterInitialized);
+    if (!ParameterInitialized) return EXIT_FAILURE;
+    std::cout << "Box size: " << Lx << " " << Ly << " " << Lz << std::endl;  
+  
+    System Sys(1.2, 1.5, Lx, Ly, Lz, Shear, 0.0,false, true);
+    NeighbourCellFile = Directory+"/neighbourcells";
+
+    if (!Sys.setNeighbourDirections(NeighbourCellFile)){
+        return EXIT_FAILURE;
+    }
+
     if (!Sys.addMolecules(MoleculeFileName, 1.0)) {
         std::cout << "MoleculeFile does not exist!" << std::endl; 
         return EXIT_FAILURE;     
@@ -55,7 +78,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE; 
     }
     
-    std::string outputdir=Directory+"/data/stress_tensor";
+    std::string outputdir=Directory+"/data/stress_tensor_list";
     
     const int dir_err = mkdir(outputdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     if (-1 == dir_err)
@@ -65,7 +88,7 @@ int main(int argc, char* argv[]) {
     }
     
     std::string name; 
-    name = Directory+"/data/stress_tensor/tau_xx"; 
+    name = Directory+"/data/stress_tensor_list/tau_xx"; 
     std::ifstream test(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -74,7 +97,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_xx(name, std::ios::out | std::ios::trunc);  
     tau_xx.precision(8); 
     
-    name = Directory+"/data/stress_tensor/tau_xy"; 
+    name = Directory+"/data/stress_tensor_list/tau_xy"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -83,7 +106,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_xy(name, std::ios::out | std::ios::trunc);  
     tau_xy.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_xz";
+    name = Directory+"/data/stress_tensor_list/tau_xz";
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -92,7 +115,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_xz(name, std::ios::out | std::ios::trunc);  
     tau_xz.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_yx"; 
+    name = Directory+"/data/stress_tensor_list/tau_yx"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -101,7 +124,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_yx(name, std::ios::out | std::ios::trunc);  
     tau_yx.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_yy"; 
+    name = Directory+"/data/stress_tensor_list/tau_yy"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -110,7 +133,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_yy(name, std::ios::out | std::ios::trunc);  
     tau_yy.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_yz"; 
+    name = Directory+"/data/stress_tensor_list/tau_yz"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -119,7 +142,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_yz(name, std::ios::out | std::ios::trunc);  
     tau_yz.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_zx"; 
+    name = Directory+"/data/stress_tensor_list/tau_zx"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -128,7 +151,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_zx(name, std::ios::out | std::ios::trunc);  
     tau_zx.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_zy"; 
+    name = Directory+"/data/stress_tensor_list/tau_zy"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -137,7 +160,7 @@ int main(int argc, char* argv[]) {
     std::ofstream tau_zy(name, std::ios::out | std::ios::trunc);  
     tau_zy.precision(8);
     
-    name = Directory+"/data/stress_tensor/tau_zz"; 
+    name = Directory+"/data/stress_tensor_list/tau_zz"; 
     test.open(name); 
     if (test.good()){
         std::cout << "file " << name << " already exists! Aborting..." << std::endl; 
@@ -157,12 +180,33 @@ int main(int argc, char* argv[]) {
 	        Step += SamplingStep; 
 	        continue; 
 	    }
-    
+    	delrx = (Step+1)*DeltaTSim*Shear*Ly;
+        delrx -= Lx*floor(delrx/Lx);
+	Sys.delrx = delrx;
+	Sys.wrapMoleculesCOM();
+	Vector3d COM{Vector3d::Zero()};
+	for (auto& Mol : Sys.Molecules) {
+            for (auto& Mono : Mol.Monomers) {
+	        COM += Mono.Position;
+	    }
+	} 
+	COM /= Sys.NumberOfParticles();
         //Mol.calculateInternalForces(); 
         StressCurrent = Matrix3d::Zero(); 
-        for (auto& Mol : Sys.Molecules) {
-            Mol.calculateSpringForces(); 
-            StressCurrent += Mol.StressTensor(); 
+        //Sys.calculateForcesBrute();
+        Sys.updateCellLists();
+    	Sys.calculateForcesCellList();
+	for (auto& Mol : Sys.Molecules) {
+	    for (auto& Mono : Mol.Monomers) {
+            	for (unsigned i = 0; i < 3; i++) {
+            		for (unsigned j = 0; j < 3; j++) {
+                		StressCurrent(i, j) += (Mono.Position(i)-COM(i))*Mono.Force(j);
+			}
+		}
+            }
+
+		//Mol.calculateSpringForces(); 
+            //StressCurrent += Mol.StressTensor(); 
         }
         //StressAverage += StressCurrent; 
         //StressSTD += StressCurrent.cwiseProduct(StressCurrent); 

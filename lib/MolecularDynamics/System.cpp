@@ -158,8 +158,9 @@ void System::updateCellLists() {
             if (PBC) imPos = image(mono, BoxSize, delrx);
             else imPos = mono.Position; 
             for (unsigned i = 0; i < 3; i++) {
-                CellNumber[i] = (int)(imPos(i)/CellSideLength[i]); 
+                CellNumber[i] = (int)(imPos(i)/CellSideLength[i]);
             }
+
             try {
                 CellList[CellNumber[0]][CellNumber[1]][CellNumber[2]].push_front(&mono); 
             }
