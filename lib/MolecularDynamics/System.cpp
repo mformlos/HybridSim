@@ -264,6 +264,131 @@ void System::calculateForcesVerlet(bool calcEpot) {
     }    
 }
 
+Matrix3d System::calculateStressTensor() {
+    Matrix3d StressTensor(Matrix3d::Zero());
+    int xbox_displacement{(unsigned)(delrx/CellSideLength[0])};
+    double force_abs {};
+    Vector3d force {};
+    Vector3d relPos;
+    //loop over all cells 
+    for (int i = 0; i < Cells[0]; i++) {
+        for (int j = 0; j < Cells[1]; j++) {
+             for (int k = 0; k < Cells[2]; k++) {
+                ///loop over all monomers in this cell
+                 for (auto first_it = CellList[i][j][k].begin(); first_it != CellList[i][j][k].end(); first_it++) {
+                     MDParticle* first = *first_it;
+			if (first_it !=  CellList[i][j][k].end()) {
+			    /// loop over all further monomers in this cell
+                            for (auto second_it = std::next(first_it,1); second_it != CellList[i][j][k].end(); second_it++){
+                                MDParticle* second = *second_it;
+                            //std::cout << "second: " << second -> Identifier << std::endl; 
+                                if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
+                                else relPos = second -> Position - first -> Position;
+                                double radius2 {relPos.squaredNorm()};
+				force_abs = RLJ_Force(radius2);
+                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                    throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs));
+                                }
+                                force = relPos*force_abs;
+				for (int x = 0; x < 3; x++) {
+				    for (int y = 0; y < 3; y++) {
+					StressTensor(x,y)+=relPos(x)*force(y);
+				    }
+				}
+                            }
+			}
+			//loop over all neighbors 
+                        int l{}, m{}, n{};
+                        /// all except the top layer boxes 
+                        if (j != Cells[1] - 1) {
+		            for (unsigned dir = 0; dir < 13; dir++) {
+			        l = i + NeighbourDirections[dir][0];
+				m = j + NeighbourDirections[dir][1];
+				n = k + NeighbourDirections[dir][2];
+				l -= floor((double)l/Cells[0])*Cells[0];
+				m -= floor((double)m/Cells[1])*Cells[1];
+				n -= floor((double)n/Cells[2])*Cells[2];
+				l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
+				/// loop over all monomers in this neighbouring cell
+			        for (auto& second : CellList[l][m][n]) {
+				    if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
+				    else relPos = second -> Position - first -> Position;
+				    double radius2 {relPos.squaredNorm()};
+				    force_abs = RLJ_Force(radius2);                                   
+				    if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+					throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs));
+				    }
+				    force = relPos*force_abs;
+        	                    for (int x = 0; x < 3; x++) {
+	                                for (int y = 0; y < 3; y++) {
+                                            StressTensor(x,y)+=relPos(x)*force(y);
+                                        }
+                                    } 
+				}
+			    }    
+			}
+			/// for the top layer boxes
+			else {
+                        for (unsigned dir = 0; dir < 16; dir++) {
+
+                            l = i + NeighbourDirections[dir][0];
+                            m = j + NeighbourDirections[dir][1];
+                            n = k + NeighbourDirections[dir][2];
+ 
+                            if (NeighbourDirections[dir][1] == 1) {
+                                l -= xbox_displacement;
+                            }
+
+                            l -= floor((double)l/Cells[0])*Cells[0];
+                            m -= floor((double)m/Cells[1])*Cells[1];
+                            n -= floor((double)n/Cells[2])*Cells[2];
+			    /// loop over all monomers in this neighbouring cell
+                            for (auto& second : CellList[l][m][n]) {
+                                if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
+                                else relPos = second -> Position - first -> Position;
+                                double radius2 {relPos.squaredNorm()};
+                                force_abs = RLJ_Force(radius2);
+                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                    throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs));
+                                }
+                                force = relPos*force_abs;
+                                for (int x = 0; x < 3; x++) {
+                                    for (int y = 0; y < 3; y++) {
+                                        StressTensor(x,y)+=relPos(x)*force(y);
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+		    /// Calculation of FENE
+                    for (auto& bonded : first -> Bonds) {
+                        Vector3d relPos;
+                        if (PBC) relPos = relative(*first, *bonded, BoxSize, delrx);
+                        else relPos = bonded -> Position - first -> Position;
+                        double radius2 {relPos.squaredNorm()};
+                        force_abs = FENE_Force(radius2);
+                        if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                            throw(FENEException(first -> Identifier, bonded->Identifier, force_abs));
+                        }
+                        force = relPos*force_abs;
+			for (int x = 0; x < 3; x++) {
+			    for (int y = 0; y < 3; y++) {
+				StressTensor(x,y)+=relPos(x)*force(y);
+			    }
+			}
+                    }
+                }
+            }
+        }
+    }
+    return StressTensor; 
+}
+
+
+
+
+
 void System::calculateForcesCellList(bool calcEpot) {
     int xbox_displacement{(unsigned)(delrx/CellSideLength[0])};
     double force_abs {}; 
@@ -365,7 +490,6 @@ void System::calculateForcesCellList(bool calcEpot) {
                             //l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
                             /// loop over all monomers in this neighbouring cell
                             for (auto& second : CellList[l][m][n]) {
-                                //std::cout << "second: " << second -> Identifier << std::endl;
                                 if (PBC) relPos = relative(*first, *second, BoxSize, delrx); 
                                 else relPos = second -> Position - first -> Position;  
                                 double radius2 {relPos.squaredNorm()};
@@ -374,11 +498,9 @@ void System::calculateForcesCellList(bool calcEpot) {
 
                                 }
                                 force_abs = RLJ_Force(radius2); 
-                                //std::cout << force_abs << std::endl; 
                                 if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
                                     throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
                                 }
-                                //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
                                 force = relPos*force_abs; 
                                 first -> Force -= force;  
                                 second -> Force += force; 

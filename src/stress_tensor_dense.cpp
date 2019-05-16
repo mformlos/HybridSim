@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
         StressCurrent = Matrix3d::Zero(); 
         //Sys.calculateForcesBrute();
         Sys.updateCellLists();
-    	Sys.calculateForcesCellList();
+    	/*Sys.calculateForcesCellList();
 	for (auto& Mol : Sys.Molecules) {
 	    for (auto& Mono : Mol.Monomers) {
             	for (unsigned i = 0; i < 3; i++) {
@@ -207,7 +207,8 @@ int main(int argc, char* argv[]) {
 
 		//Mol.calculateSpringForces(); 
             //StressCurrent += Mol.StressTensor(); 
-        }
+        }*/
+	StressCurrent = Sys.calculateStressTensor();
         //StressAverage += StressCurrent; 
         //StressSTD += StressCurrent.cwiseProduct(StressCurrent); 
         

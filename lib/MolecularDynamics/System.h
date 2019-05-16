@@ -108,6 +108,7 @@ public:
     double KineticEnergy(); 
     double PotentialEnergy(); 
     std::tuple<double, Matrix3d> GyrationTensor(); 
+    Matrix3d calculateStressTensor();
     Vector3d RotationFrequency(); 
     std::vector<double> calculateExtension(unsigned); 
     
