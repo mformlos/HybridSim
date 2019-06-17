@@ -52,6 +52,7 @@ add_executable(C_angle_stepfile c_angle_stepfile.cpp)
 target_link_libraries(C_angle_stepfile Molecule)
 
 add_executable(rgyr_corr rgyr_corr.cpp)
+add_executable(rgyr_corr_dense rgyr_corr_dense.cpp)
 
 add_executable(rgyr_corr_multiple rgyr_corr_multiple.cpp)
 

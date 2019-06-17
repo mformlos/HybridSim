@@ -277,10 +277,14 @@ Matrix3d System::calculateStressTensor() {
                 ///loop over all monomers in this cell
                  for (auto first_it = CellList[i][j][k].begin(); first_it != CellList[i][j][k].end(); first_it++) {
                      MDParticle* first = *first_it;
-			if (first_it !=  CellList[i][j][k].end()) {
+		     if (first ->Identifier > 1599 && first ->Identifier < 2000) continue;
+		     if (first ->Identifier > 6199 && first ->Identifier < 6400) continue;
+		       if (first_it !=  CellList[i][j][k].end()) {
 			    /// loop over all further monomers in this cell
                             for (auto second_it = std::next(first_it,1); second_it != CellList[i][j][k].end(); second_it++){
                                 MDParticle* second = *second_it;
+				if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
                             //std::cout << "second: " << second -> Identifier << std::endl; 
                                 if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
                                 else relPos = second -> Position - first -> Position;
@@ -311,6 +315,8 @@ Matrix3d System::calculateStressTensor() {
 				l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
 				/// loop over all monomers in this neighbouring cell
 			        for (auto& second : CellList[l][m][n]) {
+				    if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		    if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
 				    if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
 				    else relPos = second -> Position - first -> Position;
 				    double radius2 {relPos.squaredNorm()};
@@ -344,6 +350,8 @@ Matrix3d System::calculateStressTensor() {
                             n -= floor((double)n/Cells[2])*Cells[2];
 			    /// loop over all monomers in this neighbouring cell
                             for (auto& second : CellList[l][m][n]) {
+				if (second -> Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
                                 if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
                                 else relPos = second -> Position - first -> Position;
                                 double radius2 {relPos.squaredNorm()};
