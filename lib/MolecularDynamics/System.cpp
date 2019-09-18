@@ -60,7 +60,7 @@ bool System::setNeighbourDirections(std::string filename) {
     int x {}, y {}, z{}; 
     unsigned n {0};
     while(file >> x >> y >> z) {
-        std::cout << x << " "<< y << " " << z << std::endl; 
+        //std::cout << x << " "<< y << " " << z << std::endl; 
         NeighbourDirections[n][0] = x; 
         NeighbourDirections[n][1] = y;
         NeighbourDirections[n][2] = z;
@@ -277,14 +277,14 @@ Matrix3d System::calculateStressTensor() {
                 ///loop over all monomers in this cell
                  for (auto first_it = CellList[i][j][k].begin(); first_it != CellList[i][j][k].end(); first_it++) {
                      MDParticle* first = *first_it;
-		     if (first ->Identifier > 1599 && first ->Identifier < 2000) continue;
-		     if (first ->Identifier > 6199 && first ->Identifier < 6400) continue;
+		     //if (first ->Identifier > 1599 && first ->Identifier < 2000) continue;
+		     //if (first ->Identifier > 6199 && first ->Identifier < 6400) continue;
 		       if (first_it !=  CellList[i][j][k].end()) {
 			    /// loop over all further monomers in this cell
                             for (auto second_it = std::next(first_it,1); second_it != CellList[i][j][k].end(); second_it++){
                                 MDParticle* second = *second_it;
-				if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
-		     		if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
+				//if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		//if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
                             //std::cout << "second: " << second -> Identifier << std::endl; 
                                 if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
                                 else relPos = second -> Position - first -> Position;
@@ -315,8 +315,8 @@ Matrix3d System::calculateStressTensor() {
 				l -= floor((double)j/Cells[1]) *(int)(delrx/CellSideLength[0]); 
 				/// loop over all monomers in this neighbouring cell
 			        for (auto& second : CellList[l][m][n]) {
-				    if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
-		     		    if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
+				    //if (second ->Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		    //if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
 				    if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
 				    else relPos = second -> Position - first -> Position;
 				    double radius2 {relPos.squaredNorm()};
@@ -350,8 +350,8 @@ Matrix3d System::calculateStressTensor() {
                             n -= floor((double)n/Cells[2])*Cells[2];
 			    /// loop over all monomers in this neighbouring cell
                             for (auto& second : CellList[l][m][n]) {
-				if (second -> Identifier > 1599 && second ->Identifier < 2000) continue;
-		     		if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
+				//if (second -> Identifier > 1599 && second ->Identifier < 2000) continue;
+		     		//if (second ->Identifier > 6199 && second ->Identifier < 6400) continue;
                                 if (PBC) relPos = relative(*first, *second, BoxSize, delrx);
                                 else relPos = second -> Position - first -> Position;
                                 double radius2 {relPos.squaredNorm()};
@@ -431,7 +431,7 @@ void System::calculateForcesCellList(bool calcEpot) {
 
                             }
                             force_abs = RLJ_Force(radius2); 
-                            if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                            if (fabs(force_abs) > 1e6 || std::isinf(force_abs) || std::isnan(force_abs)) {
                                 throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
                             }
                             //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
@@ -466,7 +466,7 @@ void System::calculateForcesCellList(bool calcEpot) {
                                 }
                                 force_abs = RLJ_Force(radius2); 
                                 //std::cout << force_abs << std::endl;    
-                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                if (fabs(force_abs) > 1e6 || std::isinf(force_abs) || std::isnan(force_abs)) {
                                     throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
                                 }
                                 //if (force_abs > 0) Neighbours.push_back(second -> Identifier); 
@@ -506,7 +506,7 @@ void System::calculateForcesCellList(bool calcEpot) {
 
                                 }
                                 force_abs = RLJ_Force(radius2); 
-                                if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                                if (fabs(force_abs) > 1e6 || std::isinf(force_abs) || std::isnan(force_abs)) {
                                     throw(RLJException(first -> Identifier, first -> Position, first -> Velocity, second -> Identifier, second -> Position, second -> Velocity, force_abs)); 
                                 }
                                 force = relPos*force_abs; 
@@ -526,7 +526,7 @@ void System::calculateForcesCellList(bool calcEpot) {
                             Epot += FENE_Potential(radius2);
                         }    
                         force_abs = FENE_Force(radius2); 
-                        if (fabs(force_abs) > 1e4 || std::isinf(force_abs) || std::isnan(force_abs)) {
+                        if (fabs(force_abs) > 1e6 || std::isinf(force_abs) || std::isnan(force_abs)) {
                             throw(FENEException(first -> Identifier, bonded->Identifier, force_abs)); 
                         }
                         force = relPos*force_abs; 
@@ -655,6 +655,15 @@ void System::calculateForcesBrute(bool calcEpot) {
     } 
 }
 
+bool System::addMoleculesUniform(unsigned NMol, unsigned NMon, double mass) {
+    unsigned mono_start{0}; 
+    for (unsigned i = 0; i < NMol; i++) {
+	Molecules.push_back(Molecule(NMon, mass, mono_start)); 
+	Molecules[i].setChainBonds(); 
+	mono_start += NMon; 
+    }
+    return true; 
+}
 
 bool System::addMolecules(std::string filename, double mass) {
     std::ifstream file(filename, ios::in);

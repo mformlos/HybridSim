@@ -83,6 +83,7 @@ public:
     
     // Initialize Molecules 
     bool addMolecules(std::string, double mass = 1.0); 
+    bool addMoleculesUniform(unsigned, unsigned, double mass = 1.0); 
     bool addLinks(std::string);  
     bool initializePositions(std::string); 
     bool initializePositionsPDB(std::string);
@@ -97,7 +98,7 @@ public:
     void setAnchor(unsigned, Vector3d); 
     void setAnchorAuto(unsigned); 
     bool setNeighbourDirections(std::string); 
-    
+        
     void propagate(double dt, bool calcEpot=false); 
     void propagateLangevin(double dt, double Temperature, double gamma=0.05, bool calcEpot=false); 
     

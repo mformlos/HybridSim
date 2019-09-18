@@ -66,6 +66,12 @@ target_link_libraries(stress_tensor Molecule)
 add_executable(stress_tensor_dense stress_tensor_dense.cpp)
 target_link_libraries(stress_tensor_dense System)
 
+add_executable(stress_tensor_Angel stress_tensor_dense_Angel.cpp)
+target_link_libraries(stress_tensor_Angel System)
+
+add_executable(shannon_entropy shannon_entropy.cpp)
+target_link_libraries(shannon_entropy System)
+
 add_executable(density_profile density_profile.cpp)
 target_link_libraries(density_profile Molecule)
 
